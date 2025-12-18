@@ -4,11 +4,12 @@ This module provides concrete implementations of DistributionBase using
 scipy.stats distributions, with automatic parameter validation via pydantic.
 """
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
-from pydantic import Field, create_model
+from pydantic import Field, create_model, field_validator, model_validator
 from scipy import stats
+from scipy.stats._distn_infrastructure import rv_continuous, rv_continuous_frozen
 
 from c2i2o.core.distribution import DistributionBase
 
@@ -17,19 +18,31 @@ class ScipyDistributionBase(DistributionBase):
     """Base class for distributions wrapping scipy.stats.
 
     This class provides common functionality for all scipy-based distributions,
-    including storage of the distribution name and access to the scipy
-    distribution class.
+    including access to the scipy distribution class. All scipy continuous
+    distributions use loc and scale parameters for location and scale
+    transformations.
+
+    The dist_type field (inherited from DistributionBase) is used to identify
+    which scipy.stats distribution to use.
 
     Attributes
     ----------
-    _scipy_dist_name
+    dist_type
         Name of the scipy.stats distribution (e.g., 'norm', 'uniform').
+    loc
+        Location parameter (shift) for the distribution.
+    scale
+        Scale parameter (stretch) for the distribution, must be positive.
     """
 
-    scipy_dist_name: str = Field(default="", description="Scipy type.")
+    loc: float = Field(default=0.0, description="Location parameter")
+    scale: float = Field(default=1.0, gt=0.0, description="Scale parameter")
 
-    def get_scipy_dist(self) -> Any:
+    @classmethod
+    def get_scipy_dist(cls) -> rv_continuous:
         """Get the scipy.stats distribution class.
+
+        Uses the dist_type field to determine which scipy distribution to use.
 
         Returns
         -------
@@ -38,24 +51,186 @@ class ScipyDistributionBase(DistributionBase):
         Raises
         ------
         ValueError
-            If _scipy_dist_name is not set or is invalid.
-        """
-        if not self.scipy_dist_name:
-            raise ValueError(f"{self.__class__.__name__} does not have scipy_dist_name set")
-        return getattr(stats, self.scipy_dist_name)
+            If dist_type is not set or is invalid.
 
-    def get_scipy_instance(self) -> Any:
+        Notes
+        -----
+        This is a class method that accesses the dist_type from the class
+        definition. For instances, use instance.dist_type to get the value.
+        """
+        # Get the dist_type from the model fields default value
+        dist_type_field = cls.model_fields.get("dist_type")
+        if dist_type_field is None or dist_type_field.default is None:
+            raise ValueError(f"{cls.__name__} does not have dist_type set")
+
+        dist_type = dist_type_field.default
+        try:
+            return getattr(stats, dist_type)
+        except AttributeError:
+            raise ValueError(f"Invalid scipy distribution name: {dist_type}")
+
+    def _get_scipy_instance(self) -> rv_continuous_frozen:
         """Create a scipy distribution instance with current parameters.
 
         Returns
         -------
             Instantiated scipy.stats distribution with validated parameters.
         """
-        params = self.model_dump()
-        params.pop("scipy_dist_name")        
-        scipy_dist = self.get_scipy_dist()
+        # Get all parameters except dist_type
+        params = self.model_dump(exclude={"dist_type"})
+        scipy_dist = getattr(stats, self.dist_type)
         return scipy_dist(**params)
 
+    def sample(self, n_samples: int, random_state: int | None = None, **kwargs: Any) -> np.ndarray:
+        """Draw samples from the distribution.
+
+        Parameters
+        ----------
+        n_samples
+            Number of samples to draw.
+        random_state
+            Random seed for reproducibility.
+        **kwargs
+            Additional parameters passed to scipy's rvs method.
+
+        Returns
+        -------
+            Array of samples with shape (n_samples,).
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(np.ndarray, scipy_dist.rvs(np.ndarray, size=n_samples, random_state=random_state, **kwargs))
+
+    def log_prob(self, x: np.ndarray | float, **kwargs: Any) -> np.ndarray | float:
+        """Compute log probability density.
+
+        Parameters
+        ----------
+        x
+            Values at which to evaluate log probability.
+        **kwargs
+            Additional parameters passed to scipy's logpdf method.
+
+        Returns
+        -------
+            Log probability density values.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(np.ndarray, scipy_dist.logpdf(x, **kwargs))
+
+    def prob(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:
+        """Compute probability density.
+
+        Parameters
+        ----------
+        x
+            Values at which to evaluate probability.
+        **kwargs
+            Additional parameters passed to scipy's pdf method.
+
+        Returns
+        -------
+            Probability density values.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(np.ndarray, scipy_dist.pdf(x, **kwargs))
+
+    def cdf(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:
+        """Compute cumulative distribution function.
+
+        Parameters
+        ----------
+        x
+            Values at which to evaluate CDF.
+        **kwargs
+            Additional parameters passed to scipy's cdf method.
+
+        Returns
+        -------
+            Cumulative probability values.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(np.ndarray, scipy_dist.cdf(x, **kwargs))
+
+    def mean(self) -> float:
+        """Compute the mean of the distribution.
+
+        Returns
+        -------
+            Mean value.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(float, scipy_dist.mean())
+
+    def variance(self) -> float:
+        """Compute the variance of the distribution.
+
+        Returns
+        -------
+            Variance value.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(float, scipy_dist.var())
+
+    def std(self) -> float:
+        """Compute the standard deviation of the distribution.
+
+        Returns
+        -------
+            Standard deviation value.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(float, scipy_dist.std())
+
+    def median(self) -> float:
+        """Compute the median of the distribution.
+
+        Returns
+        -------
+            Median value.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(float, scipy_dist.median())
+
+    def get_support(self) -> tuple[float, float]:
+        """Get the support (domain) of the distribution.
+
+        Returns
+        -------
+            Tuple of (lower_bound, upper_bound). May include np.inf for
+            unbounded distributions.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(tuple[float, float], scipy_dist.support())
+
+    def ppf(self, q: np.ndarray | float) -> np.ndarray | float:
+        """Compute the percent point function (inverse CDF).
+
+        Parameters
+        ----------
+        q
+            Quantile values between 0 and 1.
+
+        Returns
+        -------
+            Values at the given quantiles.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(np.ndarray | float, scipy_dist.ppf(q))
+
+    def interval(self, confidence: float = 0.95) -> tuple[float, float]:
+        """Compute confidence interval around the median.
+
+        Parameters
+        ----------
+        confidence
+            Confidence level (default: 0.95 for 95% interval).
+
+        Returns
+        -------
+            Tuple of (lower_bound, upper_bound) for the confidence interval.
+        """
+        scipy_dist = self._get_scipy_instance()
+        return cast(tuple[float, float], scipy_dist.interval(confidence))
 
 
 def create_scipy_distribution(dist_name: str) -> type[ScipyDistributionBase]:
@@ -65,6 +240,9 @@ def create_scipy_distribution(dist_name: str) -> type[ScipyDistributionBase]:
     wraps a scipy.stats continuous distribution. The resulting class validates
     distribution parameters and provides sampling and log-probability methods.
 
+    The base class provides loc and scale parameters, so this function only adds
+    the shape parameters specific to each distribution.
+
     Parameters
     ----------
     dist_name
@@ -72,64 +250,63 @@ def create_scipy_distribution(dist_name: str) -> type[ScipyDistributionBase]:
 
     Returns
     -------
-        A new class inheriting from ScipyDistributionBase.
+        A new class inheriting from ScipyDistributionBase with dist_type field
+        and shape parameters properly configured.
 
     Examples
     --------
     >>> Beta = create_scipy_distribution('beta')
     >>> dist = Beta(a=2.0, b=5.0)
+    >>> assert dist.dist_type == 'beta'
     >>> samples = dist.sample(1000)
     """
     # Get the scipy distribution
     scipy_dist = getattr(stats, dist_name)
 
-    # Base parameters common to all distributions
-    field_definitions: dict[str, Any] = {
-        "loc": (float, Field(default=0.0, description="Location parameter.")),
-        "scale": (float, Field(default=1.0, description="Scale parameter.")),
-        "scipy_dist_name": (Literal[dist_name], Field(default=dist_name, description="Scipy type.")),
-    }
-
-    
-    # Get parameter names from the scipy distribution
+    # Get shape parameter names from the scipy distribution
     shapes = scipy_dist.shapes
     param_names = []
 
     if shapes:
         param_names = shapes.split(", ")
 
-    # Create pydantic field definitions
+    # Create pydantic field definitions for shape parameters only
+    # (loc and scale are inherited from ScipyDistributionBase)
+    field_definitions: dict[str, tuple] = {}
+
+    # Add dist_type field with Literal type
+    field_definitions["dist_type"] = (Literal[dist_name], dist_name)
+
+    # Add shape parameters (required, no defaults)
     for param in param_names:
         field_definitions[param] = (float, Field(...))
 
     # Create class name (capitalize first letter)
     class_name = dist_name.capitalize()
 
-    # Use a docstring to clearly identify the model
-    docstring = (
-        f"Pydantic model for validating input parameters of the "
-        f"scipy.stats.{dist_name} distribution."
-    )
-    
     # Create the dynamic class using pydantic's create_model
     dynamic_class = create_model(
         class_name,
-        __module__=__name__,
-        __doc__=docstring,
         __base__=ScipyDistributionBase,
-        _scipy_dist_name=dist_name,
         **field_definitions,
     )
 
-    return dynamic_class
+    # Add module for proper pickling and repr
+    dynamic_class.__module__ = __name__
+
+    return cast(type[ScipyDistributionBase], dynamic_class)
 
 
 # Create specific distribution classes
 Norm = create_scipy_distribution("norm")
 Norm.__doc__ = """Normal (Gaussian) distribution.
 
+The normal distribution is parameterized by loc (mean) and scale (standard deviation).
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "norm".
 loc
     Mean of the distribution (default: 0.0).
 scale
@@ -138,34 +315,49 @@ scale
 Examples
 --------
 >>> dist = Norm(loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "norm"
 >>> samples = dist.sample(1000)
 >>> log_p = dist.log_prob(samples)
+>>> print(f"Mean: {dist.mean()}, Std: {dist.std()}")
+>>> support = dist.get_support()  # (-inf, inf)
 """
 
 
 Uniform = create_scipy_distribution("uniform")
 Uniform.__doc__ = """Uniform distribution.
 
+The uniform distribution is parameterized by loc (lower bound) and scale (width).
+The upper bound is loc + scale.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "uniform".
 loc
     Lower bound of the distribution (default: 0.0).
 scale
     Width of the distribution (default: 1.0, must be positive).
-    Upper bound is loc + scale.
 
 Examples
 --------
 >>> dist = Uniform(loc=0.0, scale=1.0)  # Uniform on [0, 1]
+>>> assert dist.dist_type == "uniform"
 >>> samples = dist.sample(1000)
+>>> support = dist.get_support()  # (0.0, 1.0)
+>>> interval = dist.interval(0.95)  # (0.025, 0.975)
 """
 
 
 Lognorm = create_scipy_distribution("lognorm")
 Lognorm.__doc__ = """Log-normal distribution.
 
+The log-normal distribution has a shape parameter s (sigma) which is the
+standard deviation of the underlying normal distribution.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "lognorm".
 s
     Shape parameter (standard deviation of log(X)).
 loc
@@ -176,19 +368,27 @@ scale
 Examples
 --------
 >>> dist = Lognorm(s=0.5, loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "lognorm"
 >>> samples = dist.sample(1000)
+>>> print(f"Mean: {dist.mean()}, Median: {dist.median()}")
 """
 
 
+# Truncated normal with validation
 Truncnorm = create_scipy_distribution("truncnorm")
 Truncnorm.__doc__ = """Truncated normal distribution.
 
+The truncated normal has shape parameters a and b defining the truncation
+bounds in standardized form.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "truncnorm".
 a
     Lower truncation point in standardized form.
 b
-    Upper truncation point in standardized form.
+    Upper truncation point in standardized form (must be > a).
 loc
     Mean of the underlying normal distribution (default: 0.0).
 scale
@@ -201,15 +401,26 @@ The parameters a and b are in standardized form: (x - loc) / scale.
 Examples
 --------
 >>> dist = Truncnorm(a=-2.0, b=2.0, loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "truncnorm"
 >>> samples = dist.sample(1000)  # Truncated to [-2, 2] in standard form
+>>> support = dist.get_support()
+
+Raises
+------
+ValueError
+    If b <= a.
 """
 
 
 Powerlaw = create_scipy_distribution("powerlaw")
 Powerlaw.__doc__ = """Power-law distribution.
 
+The power-law distribution has a shape parameter a.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "powerlaw".
 a
     Shape parameter.
 loc
@@ -220,15 +431,21 @@ scale
 Examples
 --------
 >>> dist = Powerlaw(a=1.5, loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "powerlaw"
 >>> samples = dist.sample(1000)
+>>> support = dist.get_support()  # (0.0, 1.0) in standard form
 """
 
 
 Gamma = create_scipy_distribution("gamma")
 Gamma.__doc__ = """Gamma distribution.
 
+The gamma distribution has a shape parameter a.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "gamma".
 a
     Shape parameter.
 loc
@@ -239,15 +456,22 @@ scale
 Examples
 --------
 >>> dist = Gamma(a=2.0, loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "gamma"
 >>> samples = dist.sample(1000)
+>>> print(f"Mean: {dist.mean()}, Variance: {dist.variance()}")
 """
 
 
 Expon = create_scipy_distribution("expon")
 Expon.__doc__ = """Exponential distribution.
 
+The exponential distribution has no shape parameters, only loc and scale.
+The scale parameter is the inverse of the rate parameter.
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "expon".
 loc
     Location parameter (default: 0.0).
 scale
@@ -256,15 +480,22 @@ scale
 Examples
 --------
 >>> dist = Expon(loc=0.0, scale=1.0)  # Rate = 1.0
+>>> assert dist.dist_type == "expon"
 >>> samples = dist.sample(1000)
+>>> print(f"Mean: {dist.mean()}")  # Mean = scale = 1.0
+>>> support = dist.get_support()  # (0.0, inf)
 """
 
 
 T = create_scipy_distribution("t")
 T.__doc__ = """Student's t distribution.
 
+The Student's t distribution has a shape parameter df (degrees of freedom).
+
 Parameters
 ----------
+dist_type
+    Distribution type identifier, must be "t".
 df
     Degrees of freedom.
 loc
@@ -275,7 +506,10 @@ scale
 Examples
 --------
 >>> dist = T(df=3.0, loc=0.0, scale=1.0)
+>>> assert dist.dist_type == "t"
 >>> samples = dist.sample(1000)
+>>> support = dist.get_support()  # (-inf, inf)
+>>> interval = dist.interval(0.95)  # 95% confidence interval
 """
 
 

@@ -24,8 +24,6 @@ top:
 	  Lognorm(DistributionBase)
 	  Uniform(DistributionBase)
 	  Expon(DistributionBase)
-        parameter.py: # 
-	  Parameter(pydanctic.BaseModel) #
 	parameterSpace.py #
 	  ParameterSpace(pydanctic.BaseModel) #
         grid.py:
