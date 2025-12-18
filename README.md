@@ -17,11 +17,11 @@ Cosmological Parameters to/from Intermediate Data Products to/from Observables
 
 ### Key Features
 
-- **🚀 Fast Emulation**: Replace expensive simulations with trained emulators
-- **📊 Flexible Inference**: Multiple inference backends (MCMC, nested sampling, SBI)
-- **🔌 Extensible**: Plugin architecture for custom emulators and observables
-- **🌐 Multi-Framework**: Interfaces to CCL, Astropy, PyTorch, TensorFlow
-- **📈 Scalable**: Designed for diverse cosmological datasets
+- ** Fast Emulation**: Replace expensive simulations with trained emulators
+- ** Flexible Inference**: Multiple inference backends (MCMC, nested sampling, SBI)
+- ** Extensible**: Plugin architecture for custom emulators and observables
+- ** Multi-Framework**: Interfaces to CCL, Astropy, PyTorch, TensorFlow
+- ** Scalable**: Designed for diverse cosmological datasets
 
 ## Installation
 
@@ -31,36 +31,43 @@ Cosmological Parameters to/from Intermediate Data Products to/from Observables
 pip install c2i2o
 ```
 
-# For PyTorch-based emulators
+#### For PyTorch interfaces
 ```bash
 pip install c2i2o[pytorch]
 ```
 
-# For TensorFlow-based emulators
+#### For TensorFlow interfaces
 ```bash
 pip install c2i2o[tensorflow]
 ```
 
-# For cosmology library integrations
+#### For CCL cosmology interfaces
 ```bash
-pip install c2i2o[cosmology]
+pip install c2i2o[cccl]
 ```
 
-# For database support
+#### For astropy cosmology interfaces
 ```bash
-pip install c2i2o[database]
+pip install c2i2o[astropy]
 ```
 
-# Install everything
+#### For database support
+```bash
+pip install c2i2o[db]
+```
+
+#### Install everything
 ```bash
 pip install c2i2o[all]
 ```
 
 
-
+#### Developer tools
+```bash
 git clone https://github.com/KIPAC/c2i2o.git
 cd c2i2o
 pip install -e ".[dev]"
+```
 
 
 ## Documentation

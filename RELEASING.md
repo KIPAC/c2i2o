@@ -15,6 +15,7 @@ This document describes how to create a new release of c2i2o.
 ```bash
 # Run the release preparation script
 ./scripts/prepare_release.sh 0.1.0
+```
 
 # This will:
 # - Run all tests
