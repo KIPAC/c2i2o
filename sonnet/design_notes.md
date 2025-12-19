@@ -64,6 +64,8 @@ The package follows a layered architecture:
 
 **Purpose**: Concrete distribution implementations using scipy.stats.
 
+**Design Change**: Originally used dynamic class creation with `pydantic.create_model()`, but this caused type-checking issues. Now uses explicit class definitions for better type safety and IDE support.
+
 **Classes**:
 - `ScipyDistributionBase`: Base class for scipy-wrapped distributions
   - Inherits from `DistributionBase`
@@ -73,27 +75,49 @@ The package follows a layered architecture:
   - Utility methods: `mean()`, `variance()`, `std()`, `median()`
   - Support queries: `get_support()`, `ppf()`, `interval()`
 
-**Factory Pattern**:
-- `create_scipy_distribution(dist_name)`: Dynamically creates distribution classes
-  - Discovers shape parameters from scipy
-  - Generates Pydantic fields with validation
-  - Sets `dist_type` as Literal type for type safety
-  - Inherits `loc` and `scale` from base class
-
-**Pre-defined Distributions**:
+**Concrete Distribution Classes** (all inherit from `ScipyDistributionBase`):
 - `Norm`: Normal distribution
+  - `dist_type`: Literal["norm"]
+  - No shape parameters (only loc, scale)
+
 - `Uniform`: Uniform distribution
+  - `dist_type`: Literal["uniform"]
+  - No shape parameters
+
 - `Lognorm`: Log-normal distribution
-- `Truncnorm`: Truncated normal (with validation: b > a)
+  - `dist_type`: Literal["lognorm"]
+  - Shape parameter: `s` (sigma)
+
+- `Truncnorm`: Truncated normal distribution
+  - `dist_type`: Literal["truncnorm"]
+  - Shape parameters: `a`, `b` (truncation bounds)
+  - Validator: ensures `b > a`
+
 - `Powerlaw`: Power-law distribution
+  - `dist_type`: Literal["powerlaw"]
+  - Shape parameter: `a`
+
 - `Gamma`: Gamma distribution
+  - `dist_type`: Literal["gamma"]
+  - Shape parameter: `a`
+
 - `Expon`: Exponential distribution
+  - `dist_type`: Literal["expon"]
+  - No shape parameters
+
 - `T`: Student's t distribution
+  - `dist_type`: Literal["t"]
+  - Shape parameter: `df` (degrees of freedom)
 
 **Design Decisions**:
-- `loc` and `scale` in base class reduces duplication
-- Factory function enables easy addition of new distributions
-- Validators ensure parameter constraints (e.g., scale > 0, b > a for truncnorm)
+- Explicit class definitions instead of dynamic creation for:
+  - Better type checking (mypy compliant)
+  - IDE autocomplete support
+  - Clearer documentation
+  - Easier maintenance
+- Each class explicitly defines its shape parameters as Pydantic fields
+- `loc` and `scale` inherited from base class to reduce duplication
+- Literal types for `dist_type` enable discriminated unions
 - All methods delegate to scipy for consistent behavior
 
 ---
@@ -380,6 +404,34 @@ def numpy_encoder(obj):
 
 ---
 
+## Testing Infrastructure
+
+### Test Coverage (Current)
+
+Name Stmts Miss Branch BrPart Cover
+src/c2i2o/core/distribution.py 32 0 10 0 100.00% 
+src/c2i2o/core/scipy_distributions.py 180 3 6 1 97.78% 
+src/c2i2o/core/parameter_space.py 102 0 46 0 100.00% 
+src/c2i2o/core/grid.py 97 0 26 0 100.00% 
+src/c2i2o/core/tensor.py 74 0 32 0 100.00% 
+src/c2i2o/core/intermediate.py 110 0 32 0 100.00%
+TOTAL                                     595     3    152      1   99.17%
+
+### Test Structure
+
+tests/
+├── init.py
+├── conftest.py                    # Shared fixtures
+├── core/
+│   ├── init.py
+│   ├── test_distribution.py       # 15 tests
+│   ├── test_scipy_distributions.py # 80 tests
+│   ├── test_parameter_space.py    # 35 tests
+│   ├── test_grid.py              # 25 tests
+│   ├── test_tensor.py            # 20 tests
+│   └── test_intermediate.py      # 25 tests
+
+
 ## Testing Strategy (Planned)
 
 ### Unit Tests
@@ -500,14 +552,17 @@ def numpy_encoder(obj):
 
 ### Completed (v0.1.0)
 - ✅ `DistributionBase` and `FixedDistribution`
-- ✅ `ScipyDistributionBase` with 8 concrete distributions
+- ✅ `ScipyDistributionBase` with 8 concrete distributions (explicit classes)
 - ✅ `ParameterSpace` with dict/array conversions
 - ✅ `GridBase`, `Grid1D`, `ProductGrid`
 - ✅ `TensorBase` and `NumpyTensor`
 - ✅ `IntermediateBase` and `IntermediateSet`
+- ✅ Comprehensive unit tests (>94% coverage)
+- ✅ Type hints throughout (mypy compliant)
+- ✅ Pydantic v2 validation
+- ✅ pytest and coverage configuration
 
 ### In Progress
-- ⏳ Unit tests
 - ⏳ GitHub Actions workflows
 - ⏳ Documentation (Sphinx)
 - ⏳ README with examples
