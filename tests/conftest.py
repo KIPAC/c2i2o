@@ -9,6 +9,7 @@ from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
 from c2i2o.core.parameter_space import ParameterSpace
 from c2i2o.core.scipy_distributions import Norm, Uniform
 from c2i2o.core.tensor import NumpyTensor
+from c2i2o.core.tracer import Tracer, TracerElement
 
 
 @pytest.fixture
@@ -94,3 +95,25 @@ def simple_parameter_space() -> ParameterSpace:
             "h": FixedDistribution(value=0.7),
         }
     )
+
+
+@pytest.fixture
+def simple_tracer_element(simple_numpy_tensor_1d: NumpyTensor) -> TracerElement:
+    """Simple tracer element for testing."""
+    return TracerElement(
+        radial_kernel=simple_numpy_tensor_1d,
+        bessel_derivative=0,
+        angles_derivative=0,
+    )
+
+
+@pytest.fixture
+def simple_tracer(simple_grid_1d: Grid1D) -> Tracer:
+    """Simple tracer with two elements for testing."""
+    kernel1 = NumpyTensor(grid=simple_grid_1d, values=np.ones(11))
+    kernel2 = NumpyTensor(grid=simple_grid_1d, values=np.ones(11) * 2.0)
+
+    element1 = TracerElement(radial_kernel=kernel1, bessel_derivative=0)
+    element2 = TracerElement(radial_kernel=kernel2, bessel_derivative=1)
+
+    return Tracer(elements=[element1, element2], name="test_tracer")
