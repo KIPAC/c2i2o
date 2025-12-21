@@ -6,7 +6,7 @@ modeling correlated cosmological parameters or uncertainties.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
@@ -452,8 +452,206 @@ class MultiLogNormal(MultiDistributionBase):
         return cast(np.ndarray, (np.exp(var_log) - 1.0) * np.exp(2.0 * self.mean + var_log))
 
 
+MultiDistributionUnion = Annotated[
+    MultiGauss | MultiLogNormal,
+    Field(discriminator="dist_type"),
+]
+
+
+class MultiDistributionSet(BaseModel):
+    """Collection of multi-dimensional probability distributions.
+
+    This class manages multiple multivariate distributions, ensuring no
+    parameter name collisions and providing unified sampling and probability
+    evaluation across all distributions.
+
+    Attributes
+    ----------
+    distributions
+        List of multi-dimensional distributions. Each distribution's param_names
+        must be unique across the set.
+
+    Examples
+    --------
+    >>> # Create two correlated distributions
+    >>> dist1 = MultiGauss(
+    ...     mean=np.array([0.3, 0.8]),
+    ...     cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+    ...     param_names=["omega_m", "sigma_8"]
+    ... )
+    >>> dist2 = MultiGauss(
+    ...     mean=np.array([0.7, 0.05]),
+    ...     cov=np.array([[0.005, 0.0], [0.0, 0.001]]),
+    ...     param_names=["omega_b", "h"]
+    ... )
+    >>> dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+    >>> samples = dist_set.sample(1000, random_state=42)
+    >>> samples.keys()
+    dict_keys(['omega_m', 'sigma_8', 'omega_b', 'h'])
+    """
+
+    distributions: list[MultiDistributionUnion]
+
+    @field_validator("distributions")
+    @classmethod
+    def validate_non_empty(cls, v: list[MultiDistributionUnion]) -> list[MultiDistributionUnion]:
+        """Ensure at least one distribution is present.
+
+        Parameters
+        ----------
+        v
+            List of distributions to validate.
+
+        Returns
+        -------
+            Validated distribution list.
+
+        Raises
+        ------
+        ValueError
+            If distribution list is empty.
+        """
+        if len(v) == 0:
+            raise ValueError("MultiDistributionSet must contain at least one distribution")
+        return v
+
+    @field_validator("distributions")
+    @classmethod
+    def validate_no_name_collisions(
+        cls, v: list[MultiDistributionUnion], info: ValidationInfo
+    ) -> list[MultiDistributionUnion]:
+        """Ensure no parameter name collisions across distributions.
+
+        Parameters
+        ----------
+        v
+            List of distributions to validate.
+        info
+            Validation context information.
+
+        Returns
+        -------
+            Validated distribution list.
+
+        Raises
+        ------
+        ValueError
+            If any parameter names are duplicated across distributions.
+        """
+        all_names: list[str] = []
+        for dist in v:
+            if dist.param_names is not None:
+                all_names.extend(dist.param_names)
+
+        if len(all_names) != len(set(all_names)):
+            duplicates = {name for name in all_names if all_names.count(name) > 1}
+            raise ValueError(f"Parameter name collision detected: {duplicates}")
+
+        return v
+
+    def sample(self, n_samples: int, random_state: int | None = None, **kwargs: Any) -> dict[str, np.ndarray]:
+        """Draw samples from all distributions.
+
+        Parameters
+        ----------
+        n_samples
+            Number of samples to draw from each distribution.
+        random_state
+            Random seed for reproducibility.
+        **kwargs
+            Additional sampling parameters passed to each distribution.
+
+        Returns
+        -------
+            Dictionary mapping parameter names to sample arrays.
+            Each array has shape (n_samples,).
+
+        Notes
+        -----
+        If param_names is None for a distribution, parameters are named
+        as "dist{i}_param{j}" where i is the distribution index and j is
+        the parameter index.
+        """
+        samples: dict[str, np.ndarray] = {}
+
+        for i, dist in enumerate(self.distributions):
+            dist_samples = dist.sample(n_samples, random_state=random_state, **kwargs)
+
+            # Get parameter names or create default names
+            if dist.param_names is not None:
+                param_names = dist.param_names
+            else:
+                param_names = [f"dist{i}_param{j}" for j in range(dist.n_dim)]
+
+            # Split columns into individual parameters
+            for j, name in enumerate(param_names):
+                samples[name] = dist_samples[:, j]
+
+        return samples
+
+    def log_prob(self, values: dict[str, np.ndarray], **kwargs: Any) -> np.ndarray:
+        """Compute joint log probability across all distributions.
+
+        Parameters
+        ----------
+        values
+            Dictionary mapping parameter names to values.
+            Each value should be an array of shape (n_points,) or scalar.
+        **kwargs
+            Additional parameters passed to each distribution.
+
+        Returns
+        -------
+            Joint log probability with shape (n_points,).
+            This is the sum of log probabilities from each distribution,
+            assuming independence between distribution groups.
+
+        Raises
+        ------
+        ValueError
+            If required parameter names are missing from values.
+
+        Notes
+        -----
+        This method assumes independence between different distributions
+        in the set, but allows for correlations within each distribution.
+        """
+        # Determine number of points
+        first_value = next(iter(values.values()))
+        n_points = len(np.atleast_1d(first_value))
+
+        log_prob_total = np.zeros(n_points)
+
+        for i, dist in enumerate(self.distributions):
+            # Get parameter names
+            if dist.param_names is not None:
+                param_names = dist.param_names
+            else:
+                param_names = [f"dist{i}_param{j}" for j in range(dist.n_dim)]
+
+            # Check all required parameters are present
+            missing = set(param_names) - set(values.keys())
+            if missing:
+                raise ValueError(f"Missing required parameters for distribution {i}: {missing}")
+
+            # Collect values for this distribution
+            x = np.column_stack([np.atleast_1d(values[name]) for name in param_names])
+
+            # Add log probability from this distribution
+            log_prob_total += dist.log_prob(x, **kwargs)
+
+        return log_prob_total
+
+    class Config:
+        """Pydantic configuration."""
+
+        arbitrary_types_allowed = True
+        extra = "forbid"
+
+
 __all__ = [
     "MultiDistributionBase",
     "MultiGauss",
     "MultiLogNormal",
+    "MultiDistributionSet",
 ]

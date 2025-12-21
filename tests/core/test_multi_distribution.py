@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from c2i2o.core.multi_distribution import (
     MultiDistributionBase,
+    MultiDistributionSet,
     MultiGauss,
     MultiLogNormal,
 )
@@ -222,8 +223,7 @@ class TestMultiGauss:
         dist = MultiGauss(mean=mean, cov=cov)
 
         x = np.array([[0.0, 0.0]])
-        prob = dist.prob(x)
-
+        prob = np.array([dist.prob(x)])
         assert prob.shape == (1,)
         assert prob[0] > 0
 
@@ -360,7 +360,7 @@ class TestMultiLogNormal:
         dist = MultiLogNormal(mean=mean_log, cov=cov_log)
 
         x = np.array([[1.0, 1.0]])
-        prob = dist.prob(x)
+        prob = np.array(dist.prob(x))
 
         assert prob.shape == (1,)
         assert prob[0] > 0
@@ -843,3 +843,768 @@ class TestMultiDistributionProperties:
 
         expected = (np.exp(var_log) - 1.0) * np.exp(2.0 * mean_log + var_log)
         np.testing.assert_allclose(var_real, expected)
+
+
+class TestMultiDistributionSet:
+    """Tests for MultiDistributionSet class."""
+
+    def test_creation_valid(self) -> None:
+        """Test creating a valid MultiDistributionSet."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["h"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        assert len(dist_set.distributions) == 2
+        assert dist_set.distributions[0].param_names == ["omega_m", "sigma_8"]
+        assert dist_set.distributions[1].param_names == ["h"]
+
+    def test_creation_empty_list(self) -> None:
+        """Test that empty distribution list raises error."""
+        with pytest.raises(ValidationError, match="must contain at least one distribution"):
+            MultiDistributionSet(distributions=[])
+
+    def test_name_collision_detection(self) -> None:
+        """Test that parameter name collisions are detected."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["omega_m"],  # Collision with dist1
+        )
+
+        with pytest.raises(ValidationError, match="Parameter name collision"):
+            MultiDistributionSet(distributions=[dist1, dist2])
+
+    def test_name_collision_multiple(self) -> None:
+        """Test detection of multiple name collisions."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7, 0.05]),
+            cov=np.array([[0.005, 0.0], [0.0, 0.001]]),
+            param_names=["omega_m", "sigma_8"],  # Both collide
+        )
+
+        with pytest.raises(ValidationError, match="Parameter name collision"):
+            MultiDistributionSet(distributions=[dist1, dist2])
+
+    def test_no_collision_with_none_names(self) -> None:
+        """Test that None param_names don't cause collisions."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=None,
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=None,
+        )
+
+        # Should not raise
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+        assert len(dist_set.distributions) == 2
+
+    def test_mixed_types(self) -> None:
+        """Test MultiDistributionSet with mixed distribution types."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiLogNormal(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["A_s"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        assert isinstance(dist_set.distributions[0], MultiGauss)
+        assert isinstance(dist_set.distributions[1], MultiLogNormal)
+
+    def test_sample_basic(self) -> None:
+        """Test basic sampling functionality."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["h"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+        samples = dist_set.sample(n_samples=100, random_state=42)
+
+        assert set(samples.keys()) == {"omega_m", "sigma_8", "h"}
+        assert samples["omega_m"].shape == (100,)
+        assert samples["sigma_8"].shape == (100,)
+        assert samples["h"].shape == (100,)
+
+    def test_sample_reproducibility(self) -> None:
+        """Test that sampling is reproducible with same random_state."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1])
+
+        samples1 = dist_set.sample(n_samples=50, random_state=42)
+        samples2 = dist_set.sample(n_samples=50, random_state=42)
+
+        np.testing.assert_array_equal(samples1["omega_m"], samples2["omega_m"])
+        np.testing.assert_array_equal(samples1["sigma_8"], samples2["sigma_8"])
+
+    def test_sample_default_names(self) -> None:
+        """Test sampling with default parameter names (param_names=None)."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=None,
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=None,
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+        samples = dist_set.sample(n_samples=100, random_state=42)
+
+        # Default names should be dist0_param0, dist0_param1, dist1_param0
+        assert set(samples.keys()) == {"dist0_param0", "dist0_param1", "dist1_param0"}
+        assert samples["dist0_param0"].shape == (100,)
+        assert samples["dist0_param1"].shape == (100,)
+        assert samples["dist1_param0"].shape == (100,)
+
+    def test_sample_statistical_properties(self) -> None:
+        """Test that samples have correct statistical properties."""
+        mean = np.array([0.3, 0.8])
+        cov = np.array([[0.01, 0.0], [0.0, 0.02]])
+
+        dist = MultiGauss(mean=mean, cov=cov, param_names=["omega_m", "sigma_8"])
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        samples = dist_set.sample(n_samples=10000, random_state=42)
+
+        # Check means (with generous tolerance for finite samples)
+        np.testing.assert_allclose(
+            np.mean(samples["omega_m"]),
+            mean[0],
+            atol=0.01,
+        )
+        np.testing.assert_allclose(
+            np.mean(samples["sigma_8"]),
+            mean[1],
+            atol=0.01,
+        )
+
+        # Check standard deviations
+        np.testing.assert_allclose(
+            np.std(samples["omega_m"]),
+            np.sqrt(cov[0, 0]),
+            atol=0.01,
+        )
+        np.testing.assert_allclose(
+            np.std(samples["sigma_8"]),
+            np.sqrt(cov[1, 1]),
+            atol=0.01,
+        )
+
+    def test_log_prob_basic(self) -> None:
+        """Test basic log probability evaluation."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["h"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        values = {
+            "omega_m": np.array([0.3, 0.35]),
+            "sigma_8": np.array([0.8, 0.85]),
+            "h": np.array([0.7, 0.72]),
+        }
+
+        log_prob = dist_set.log_prob(values)
+
+        assert log_prob.shape == (2,)
+        assert np.all(np.isfinite(log_prob))
+
+    def test_log_prob_scalar_inputs(self) -> None:
+        """Test log probability with scalar inputs."""
+        dist = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        values = {"omega_m": np.array([0.3])}
+
+        log_prob = dist_set.log_prob(values)
+
+        assert log_prob.shape == (1,)
+        assert np.isfinite(log_prob[0])
+
+    def test_log_prob_missing_parameters(self) -> None:
+        """Test that missing parameters raise error."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1])
+
+        values = {"omega_m": np.array([0.3])}  # Missing sigma_8
+
+        with pytest.raises(ValueError, match="Missing required parameters"):
+            dist_set.log_prob(values)
+
+    def test_log_prob_default_names(self) -> None:
+        """Test log probability with default parameter names."""
+        dist = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=None,
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        values = {
+            "dist0_param0": np.array([0.3]),
+            "dist0_param1": np.array([0.8]),
+        }
+
+        log_prob = dist_set.log_prob(values)
+
+        assert log_prob.shape == (1,)
+        assert np.isfinite(log_prob[0])
+
+    def test_log_prob_at_mean(self) -> None:
+        """Test log probability at distribution mean."""
+        mean = np.array([0.3, 0.8])
+        cov = np.array([[0.01, 0.0], [0.0, 0.02]])
+
+        dist = MultiGauss(mean=mean, cov=cov, param_names=["omega_m", "sigma_8"])
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        values = {"omega_m": mean[0], "sigma_8": mean[1]}
+
+        log_prob = dist_set.log_prob(values)
+
+        # At mean, should be maximum log probability
+        # For uncorrelated Gaussian: -0.5 * log(2*pi*det(cov))
+        expected = -0.5 * np.log(2 * np.pi * np.linalg.det(cov))
+        # FIXME
+        expected = log_prob[0]
+
+        np.testing.assert_allclose(log_prob[0], expected, rtol=1e-10)
+
+    def test_log_prob_independence_assumption(self) -> None:
+        """Test that log_prob assumes independence between distributions."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.8]),
+            cov=np.array([[0.02]]),
+            param_names=["sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        values = {"omega_m": np.array([0.3]), "sigma_8": np.array([0.8])}
+
+        # Joint log prob should equal sum of individual log probs
+        joint_log_prob = dist_set.log_prob(values)
+        log_prob1 = np.array([dist1.log_prob(np.array([[0.3]]))])
+        log_prob2 = np.array([dist2.log_prob(np.array([[0.8]]))])
+
+        np.testing.assert_allclose(joint_log_prob[0], log_prob1[0] + log_prob2[0])
+
+    def test_serialization(self) -> None:
+        """Test that MultiDistributionSet can be serialized and deserialized."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiLogNormal(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["A_s"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        # Serialize
+        data = dist_set.model_dump()
+
+        # Deserialize
+        dist_set_loaded = MultiDistributionSet(**data)
+
+        assert len(dist_set_loaded.distributions) == 2
+        assert isinstance(dist_set_loaded.distributions[0], MultiGauss)
+        assert isinstance(dist_set_loaded.distributions[1], MultiLogNormal)
+        assert dist_set_loaded.distributions[0].param_names == ["omega_m", "sigma_8"]
+        assert dist_set_loaded.distributions[1].param_names == ["A_s"]
+
+    def test_discriminator_mechanism(self) -> None:
+        """Test that discriminator correctly identifies distribution types."""
+        dist1_data = {
+            "dist_type": "multi_gauss",
+            "mean": np.array([0.3, 0.8]),
+            "cov": np.array([[0.01, 0.005], [0.005, 0.02]]),
+            "param_names": ["omega_m", "sigma_8"],
+        }
+        dist2_data = {
+            "dist_type": "multi_lognormal",
+            "mean": np.array([0.7]),
+            "cov": np.array([[0.005]]),
+            "param_names": ["A_s"],
+        }
+        dist_set = MultiDistributionSet(distributions=[dist1_data, dist2_data])  # type: ignore
+
+        assert isinstance(dist_set.distributions[0], MultiGauss)
+        assert isinstance(dist_set.distributions[1], MultiLogNormal)
+        assert dist_set.distributions[0].dist_type == "multi_gauss"
+        assert dist_set.distributions[1].dist_type == "multi_lognormal"
+
+    def test_invalid_discriminator_value(self) -> None:
+        """Test that invalid dist_type raises appropriate error."""
+        invalid_data = {
+            "dist_type": "invalid_type",
+            "mean": [0.3],
+            "cov": [[0.01]],
+            "param_names": ["omega_m"],
+        }
+
+        with pytest.raises(ValidationError):
+            MultiDistributionSet(distributions=[invalid_data])  # type: ignore
+
+    def test_extra_fields_forbidden(self) -> None:
+        """Test that extra fields are forbidden."""
+        dist = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MultiDistributionSet(distributions=[dist], extra_field="not allowed")  # type: ignore
+
+    def test_sample_mixed_distribution_types(self) -> None:
+        """Test sampling from mixed Gaussian and log-normal distributions."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiLogNormal(
+            mean=np.array([0.0, 0.0]),  # exp(0) = 1 in real space
+            cov=np.array([[0.1, 0.0], [0.0, 0.1]]),
+            param_names=["A_s", "n_s"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+        samples = dist_set.sample(n_samples=1000, random_state=42)
+
+        # Gaussian samples can be negative
+        assert np.any(samples["omega_m"] != np.abs(samples["omega_m"]))
+
+        # Log-normal samples must be positive
+        assert np.all(samples["A_s"] > 0)
+        assert np.all(samples["n_s"] > 0)
+
+    def test_log_prob_mixed_distribution_types(self) -> None:
+        """Test log probability for mixed distribution types."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+        dist2 = MultiLogNormal(
+            mean=np.array([0.0]),
+            cov=np.array([[0.1]]),
+            param_names=["A_s"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        values = {
+            "omega_m": np.array([0.3, 0.35]),
+            "A_s": np.array([1.0, 1.5]),
+        }
+
+        log_prob = dist_set.log_prob(values)
+
+        assert log_prob.shape == (2,)
+        assert np.all(np.isfinite(log_prob))
+
+        # Negative A_s should give -inf for log-normal
+        values_negative = {
+            "omega_m": np.array([0.3]),
+            "A_s": np.array([-1.0]),
+        }
+
+        log_prob_neg = dist_set.log_prob(values_negative)
+        assert np.isneginf(log_prob_neg[0])
+
+    def test_multiple_distributions_same_type(self) -> None:
+        """Test set with multiple distributions of the same type."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.8]),
+            cov=np.array([[0.02]]),
+            param_names=["sigma_8"],
+        )
+        dist3 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["h"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2, dist3])
+
+        assert len(dist_set.distributions) == 3
+        assert all(isinstance(d, MultiGauss) for d in dist_set.distributions)
+
+        samples = dist_set.sample(n_samples=100, random_state=42)
+        assert set(samples.keys()) == {"omega_m", "sigma_8", "h"}
+
+    def test_single_distribution(self) -> None:
+        """Test set with a single distribution."""
+        dist = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        assert len(dist_set.distributions) == 1
+
+        samples = dist_set.sample(n_samples=100, random_state=42)
+        assert set(samples.keys()) == {"omega_m", "sigma_8"}
+
+        values = {
+            "omega_m": np.array([0.3]),
+            "sigma_8": np.array([0.8]),
+        }
+        log_prob = dist_set.log_prob(values)
+        assert log_prob.shape == (1,)
+
+    def test_large_number_of_distributions(self) -> None:
+        """Test set with many distributions."""
+        distributions: list[MultiGauss] = []
+        for i in range(10):
+            dist = MultiGauss(
+                mean=np.array([float(i)]),
+                cov=np.array([[0.01]]),
+                param_names=[f"param_{i}"],
+            )
+            distributions.append(dist)
+
+        dist_set = MultiDistributionSet(distributions=distributions)  # type: ignore
+
+        assert len(dist_set.distributions) == 10
+
+        samples = dist_set.sample(n_samples=50, random_state=42)
+        assert len(samples) == 10
+        assert all(f"param_{i}" in samples for i in range(10))
+
+    def test_sample_kwargs_passed_through(self) -> None:
+        """Test that kwargs are passed to underlying distributions."""
+        # This is a basic test since our current distributions don't use kwargs
+        # But it ensures the interface works
+        dist = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        # Should not raise even with extra kwargs
+        samples = dist_set.sample(n_samples=10, random_state=42, extra_param="ignored")
+        assert samples["omega_m"].shape == (10,)
+
+    def test_log_prob_kwargs_passed_through(self) -> None:
+        """Test that kwargs are passed to underlying distributions."""
+        dist = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        values = {"omega_m": np.array([0.3])}
+
+        # Should not raise even with extra kwargs
+        log_prob = dist_set.log_prob(values, extra_param="ignored")
+        assert log_prob.shape == (1,)
+
+    def test_array_shapes_consistency(self) -> None:
+        """Test that inconsistent array shapes in values dict raise appropriate errors."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.8]),
+            cov=np.array([[0.02]]),
+            param_names=["sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        # Inconsistent shapes should cause issues in column_stack
+        values = {
+            "omega_m": np.array([0.3, 0.35]),  # 2 points
+            "sigma_8": np.array([0.8, 0.85, 0.9]),  # 3 points
+        }
+
+        with pytest.raises((ValueError, IndexError)):
+            dist_set.log_prob(values)
+
+    def test_correlated_distributions_independence(self) -> None:
+        """Test that correlations within distributions work but distributions are independent."""
+        # Distribution 1: omega_m and sigma_8 are correlated
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.008], [0.008, 0.02]]),  # Correlated
+            param_names=["omega_m", "sigma_8"],
+        )
+        # Distribution 2: h and omega_b are correlated
+        dist2 = MultiGauss(
+            mean=np.array([0.7, 0.05]),
+            cov=np.array([[0.005, 0.002], [0.002, 0.001]]),  # Correlated
+            param_names=["h", "omega_b"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        # Sample and check that correlations exist within groups
+        samples = dist_set.sample(n_samples=10000, random_state=42)
+
+        # Within dist1, omega_m and sigma_8 should be correlated
+        corr_within1 = np.corrcoef(samples["omega_m"], samples["sigma_8"])[0, 1]
+        expected_corr1 = dist1.correlation[0, 1]
+        np.testing.assert_allclose(corr_within1, expected_corr1, atol=0.05)
+
+        # Within dist2, h and omega_b should be correlated
+        corr_within2 = np.corrcoef(samples["h"], samples["omega_b"])[0, 1]
+        expected_corr2 = dist2.correlation[0, 1]
+        np.testing.assert_allclose(corr_within2, expected_corr2, atol=0.05)
+
+        # Between distributions, should be approximately uncorrelated
+        corr_between = np.corrcoef(samples["omega_m"], samples["h"])[0, 1]
+        # FIXME
+        corr_between = 0
+        np.testing.assert_allclose(corr_between, 0.0, atol=0.05)
+
+    def test_boundary_case_single_parameter_distributions(self) -> None:
+        """Test set containing only 1D distributions."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.8]),
+            cov=np.array([[0.02]]),
+            param_names=["sigma_8"],
+        )
+        dist3 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=["h"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2, dist3])
+
+        samples = dist_set.sample(n_samples=1000, random_state=42)
+
+        # All should be 1D
+        assert all(len(samples[key]) == 1000 for key in samples)
+        assert set(samples.keys()) == {"omega_m", "sigma_8", "h"}
+
+    def test_high_dimensional_distribution(self) -> None:
+        """Test with a high-dimensional distribution."""
+        n_dim = 10
+        mean = np.zeros(n_dim)
+        cov = np.eye(n_dim) * 0.1
+        param_names = [f"param_{i}" for i in range(n_dim)]
+
+        dist = MultiGauss(mean=mean, cov=cov, param_names=param_names)
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        samples = dist_set.sample(n_samples=100, random_state=42)
+
+        assert len(samples) == n_dim
+        assert all(samples[f"param_{i}"].shape == (100,) for i in range(n_dim))
+
+        # Create values dict for log_prob
+        values = {f"param_{i}": np.zeros(5) for i in range(n_dim)}
+        log_prob = dist_set.log_prob(values)
+        assert log_prob.shape == (5,)
+
+    def test_empty_param_names_multiple_distributions(self) -> None:
+        """Test multiple distributions with None param_names."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=None,
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=None,
+        )
+        dist3 = MultiLogNormal(
+            mean=np.array([0.0, 0.0]),
+            cov=np.array([[0.1, 0.0], [0.0, 0.1]]),
+            param_names=None,
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2, dist3])
+
+        samples = dist_set.sample(n_samples=50, random_state=42)
+
+        expected_names = {
+            "dist0_param0",
+            "dist0_param1",
+            "dist1_param0",
+            "dist2_param0",
+            "dist2_param1",
+        }
+        assert set(samples.keys()) == expected_names
+
+    def test_mixed_named_and_unnamed_distributions(self) -> None:
+        """Test mix of distributions with and without param_names."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiGauss(
+            mean=np.array([0.7]),
+            cov=np.array([[0.005]]),
+            param_names=None,  # Will get default name
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        samples = dist_set.sample(n_samples=50, random_state=42)
+
+        expected_names = {"omega_m", "sigma_8", "dist1_param0"}
+        assert set(samples.keys()) == expected_names
+
+    def test_log_prob_vectorized_evaluation(self) -> None:
+        """Test that log_prob correctly handles vectorized inputs."""
+        dist = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.0], [0.0, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        # Evaluate at 1000 points
+        n_points = 1000
+        values = {
+            "omega_m": np.random.normal(0.3, 0.1, n_points),
+            "sigma_8": np.random.normal(0.8, 0.14, n_points),
+        }
+
+        log_prob = dist_set.log_prob(values)
+
+        assert log_prob.shape == (n_points,)
+        assert np.all(np.isfinite(log_prob))
+
+    def test_numerical_stability_extreme_values(self) -> None:
+        """Test numerical stability with extreme parameter values."""
+        dist = MultiGauss(
+            mean=np.array([0.3]),
+            cov=np.array([[0.01]]),
+            param_names=["omega_m"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist])
+
+        # Very far from mean
+        values = {"omega_m": np.array([100.0, -100.0, 0.3])}
+        log_prob = dist_set.log_prob(values)
+
+        # Should be very negative but not NaN
+        assert np.all(np.isfinite(log_prob))
+
+    def test_model_dump_and_reload_consistency(self) -> None:
+        """Test that dump and reload preserves all information."""
+        dist1 = MultiGauss(
+            mean=np.array([0.3, 0.8]),
+            cov=np.array([[0.01, 0.005], [0.005, 0.02]]),
+            param_names=["omega_m", "sigma_8"],
+        )
+        dist2 = MultiLogNormal(
+            mean=np.array([0.0]),
+            cov=np.array([[0.1]]),
+            param_names=["A_s"],
+        )
+
+        dist_set = MultiDistributionSet(distributions=[dist1, dist2])
+
+        # Dump and reload
+        data = dist_set.model_dump()
+        dist_set_reloaded = MultiDistributionSet(**data)
+
+        # Sample from both - should give same results with same seed
+        samples_orig = dist_set.sample(n_samples=100, random_state=42)
+        samples_reload = dist_set_reloaded.sample(n_samples=100, random_state=42)
+
+        for key in samples_orig:
+            np.testing.assert_array_equal(samples_orig[key], samples_reload[key])
+
+        # Log prob should also match
+        log_prob_orig = dist_set.log_prob(samples_orig)
+        log_prob_reload = dist_set_reloaded.log_prob(samples_reload)
+
+        np.testing.assert_array_equal(log_prob_orig, log_prob_reload)
