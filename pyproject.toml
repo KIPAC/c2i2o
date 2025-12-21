@@ -36,6 +36,7 @@ dependencies = [
     "numpy>=1.26.0",
     "scipy>=1.11.0",
     "pydantic>=2.0.0",
+    "click>=8.0",
     "pyyaml>=6.0.0",
     "tables_io>=1.0",
 ]
@@ -98,6 +99,10 @@ docs = [
     "myst-parser>=2.0.0",
     "sphinx-autodoc-typehints>=1.25.0",
 ]
+
+# Add this section for the CLI entry point
+[project.scripts]
+c2i2o = "c2i2o.cli:cli"
 
 [project.urls]
 Homepage = "https://github.com/KIPAC/c2i2o"
@@ -169,6 +174,8 @@ disable = [
     "duplicate-code",
     "use-dict-literal",
     "broad-exception-caught",
+    "unspecified-encoding",
+    "too-many-lines",
 ]
 load-plugins = "pylint_pydantic"
 function-naming-style = "snake_case"

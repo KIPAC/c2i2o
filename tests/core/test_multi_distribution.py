@@ -1464,7 +1464,7 @@ class TestMultiDistributionSet:
         samples = dist_set.sample(n_samples=1000, random_state=42)
 
         # All should be 1D
-        assert all(len(samples[key]) == 1000 for key in samples)
+        assert all(len(samples[key]) == 1000 for key in samples)  # pylint: disable=consider-using-dict-items
         assert set(samples.keys()) == {"omega_m", "sigma_8", "h"}
 
     def test_high_dimensional_distribution(self) -> None:
@@ -1600,7 +1600,7 @@ class TestMultiDistributionSet:
         samples_orig = dist_set.sample(n_samples=100, random_state=42)
         samples_reload = dist_set_reloaded.sample(n_samples=100, random_state=42)
 
-        for key in samples_orig:
+        for key in samples_orig:  # pylint: disable=consider-using-dict-items
             np.testing.assert_array_equal(samples_orig[key], samples_reload[key])
 
         # Log prob should also match

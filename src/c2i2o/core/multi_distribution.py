@@ -167,7 +167,6 @@ class MultiDistributionBase(BaseModel, ABC):
         -------
             Array of samples with shape (n_samples, n_dim).
         """
-        ...
 
     @abstractmethod
     def log_prob(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:
@@ -185,7 +184,6 @@ class MultiDistributionBase(BaseModel, ABC):
         -------
             Log probability density values with shape (n_points,).
         """
-        ...
 
     class Config:
         """Pydantic configuration."""
@@ -290,7 +288,7 @@ class MultiGauss(MultiDistributionBase):
         x = np.asarray(x)
         return cast(np.ndarray, stats.multivariate_normal.logpdf(x, mean=self.mean, cov=self.cov))
 
-    def prob(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:
+    def prob(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:  # pylint: disable=unused-argument
         """Compute probability density.
 
         Parameters
@@ -547,7 +545,7 @@ class MultiDistributionSet(BaseModel):
     @field_validator("distributions")
     @classmethod
     def validate_no_name_collisions(
-        cls, v: list[MultiDistributionUnion], info: ValidationInfo
+        cls, v: list[MultiDistributionUnion], info: ValidationInfo  # pylint: disable=unused-argument
     ) -> list[MultiDistributionUnion]:
         """Ensure no parameter name collisions across distributions.
 
