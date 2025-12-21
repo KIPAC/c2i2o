@@ -87,7 +87,6 @@ class TestTracerElement:
 class TestTracer:
     """Tests for Tracer class."""
 
-
     def test_initialization(self) -> None:
         """Test basic initialization."""
         element = TracerElement()
@@ -104,7 +103,7 @@ class TestTracer:
             elements=[element],
             name="galaxy_density",
             description="Galaxy number density tracer",
-            )
+        )
 
         assert tracer.name == "galaxy_density"
         assert tracer.description == "Galaxy number density tracer"
@@ -403,7 +402,7 @@ class TestTracerIntegration:
             radial_kernel=kernel_density,
             transfer_function=transfer_density,
             bessel_derivative=0,
-            )
+        )
 
         # Create components for RSD
         kernel_rsd = NumpyTensor(grid=z_grid, values=np.exp(-z_values) * 0.5)

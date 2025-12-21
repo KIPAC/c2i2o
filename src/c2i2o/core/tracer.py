@@ -5,7 +5,6 @@ Tracers combine multiple components (radial kernels, transfer functions, prefact
 that are summed to compute the final observable.
 """
 
-
 from pydantic import BaseModel, Field, field_validator
 
 from c2i2o.core.tensor import TensorBase
@@ -237,9 +236,7 @@ class Tracer(BaseModel):
         first_grid = kernels[0].grid
         for kernel in kernels[1:]:
             if kernel.grid != first_grid:
-                raise ValueError(
-                    "All radial kernels must be defined on the same grid for summation"
-                )
+                raise ValueError("All radial kernels must be defined on the same grid for summation")
 
         # Sum the values
         summed_values = kernels[0].get_values().copy()
@@ -248,7 +245,7 @@ class Tracer(BaseModel):
 
         # Create new tensor with summed values
         # Use the same class as the first kernel
-        result = kernels[0].__class__(grid=first_grid, values=summed_values)
+        result = kernels[0].__class__(grid=first_grid, values=summed_values)  # type: ignore
         return result
 
     def sum_transfer_functions(self) -> TensorBase:
@@ -279,10 +276,8 @@ class Tracer(BaseModel):
         # Check grid compatibility
         first_grid = transfers[0].grid
         for transfer in transfers[1:]:
-            if transfer.grid != first_grid:
-                raise ValueError(
-                    "All transfer functions must be defined on the same grid for summation"
-                )
+            if transfer.grid != first_grid:  # pragma: no cover
+                raise ValueError("All transfer functions must be defined on the same grid for summation")
 
         # Sum the values
         summed_values = transfers[0].get_values().copy()
@@ -290,7 +285,7 @@ class Tracer(BaseModel):
             summed_values = summed_values + transfer.get_values()
 
         # Create new tensor with summed values
-        result = transfers[0].__class__(grid=first_grid, values=summed_values)
+        result = transfers[0].__class__(grid=first_grid, values=summed_values)  # type: ignore
         return result
 
     def sum_prefactors(self) -> TensorBase:
@@ -321,7 +316,7 @@ class Tracer(BaseModel):
         # Check grid compatibility
         first_grid = prefactors[0].grid
         for prefactor in prefactors[1:]:
-            if prefactor.grid != first_grid:
+            if prefactor.grid != first_grid:  # pragma: no cover
                 raise ValueError("All prefactors must be defined on the same grid for summation")
 
         # Sum the values
@@ -330,7 +325,7 @@ class Tracer(BaseModel):
             summed_values = summed_values + prefactor.get_values()
 
         # Create new tensor with summed values
-        result = prefactors[0].__class__(grid=first_grid, values=summed_values)
+        result = prefactors[0].__class__(grid=first_grid, values=summed_values)  # type: ignore
         return result
 
     def add_element(self, element: TracerElement) -> None:

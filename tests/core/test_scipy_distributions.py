@@ -4,8 +4,7 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from c2i2o.core.scipy_distributions import (Expon, Gamma, Lognorm, Norm,
-                                            Powerlaw, T, Truncnorm, Uniform)
+from c2i2o.core.scipy_distributions import Expon, Gamma, Lognorm, Norm, Powerlaw, T, Truncnorm, Uniform
 
 
 class TestScipyDistributionBase:
@@ -14,7 +13,7 @@ class TestScipyDistributionBase:
     def test_scipy_dist_name_from_dist_type(self) -> None:
         """Test getting scipy distribution name."""
         dist = Norm()
-        assert dist._get_scipy_dist_name() == "norm"
+        assert dist._get_scipy_dist_name() == "norm"  # pylint: disable=protected-access
 
     def test_default_loc_scale(self) -> None:
         """Test default loc and scale values."""

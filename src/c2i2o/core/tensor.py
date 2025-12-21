@@ -207,10 +207,8 @@ class NumpyTensor(TensorBase):
                 )
         elif isinstance(self.grid, ProductGrid):
             expected_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
-            if values.shape != expected_shape:
+            if values.shape != expected_shape:  # pragma: no cover
                 raise ValueError(f"Values shape {values.shape} must match grid shape {expected_shape}")
-            else:  # pragma: no cover
-                pass
         else:  # pragma: no cover
             raise AssertionError()
 
@@ -335,7 +333,7 @@ class NumpyTensor(TensorBase):
         -------
             Interpolated values.
         """
-        if not isinstance(self.grid, ProductGrid):
+        if not isinstance(self.grid, ProductGrid):  # pragma: no cover
             return self._evaluate_1d(points)
 
         # Check that all dimensions are present

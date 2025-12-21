@@ -192,7 +192,9 @@ class TestTensorBase:
     def test_cannot_instantiate(self) -> None:
         """Test that TensorBase cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            TensorBase(grid=Grid1D(min_value=0.0, max_value=1.0, n_points=10), tensor_type="test")  # type: ignore
+            TensorBase(
+                grid=Grid1D(min_value=0.0, max_value=1.0, n_points=10), tensor_type="test"
+            )  # type: ignore
 
     def test_subclass_must_implement_methods(self, simple_grid_1d: Grid1D) -> None:
         """Test that subclasses must implement abstract methods."""

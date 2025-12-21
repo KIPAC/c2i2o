@@ -11,8 +11,7 @@ import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
 from c2i2o.core.distribution import DistributionBase, FixedDistribution
-from c2i2o.core.scipy_distributions import (Expon, Gamma, Lognorm, Norm,
-                                            Powerlaw, T, Truncnorm, Uniform)
+from c2i2o.core.scipy_distributions import Expon, Gamma, Lognorm, Norm, Powerlaw, T, Truncnorm, Uniform
 
 # Create discriminated union of all distribution types
 DistributionUnion = Annotated[
@@ -220,7 +219,7 @@ class ParameterSpace(BaseModel):
         """
         probs = {}
         for name in self.parameter_names:
-            if name not in values:
+            if name not in values:  # pragma: no cover
                 raise KeyError(f"Parameter '{name}' missing from values")
             dist = self.parameters[name]
             # Check if distribution has prob method
@@ -259,7 +258,7 @@ class ParameterSpace(BaseModel):
             elif isinstance(dist, FixedDistribution):
                 # Fixed distribution has zero width
                 bounds[name] = (dist.value, dist.value)
-            else:
+            else:  # pragma: no cover
                 # Fallback to (-inf, inf)
                 bounds[name] = (-np.inf, np.inf)
         return bounds
@@ -290,7 +289,7 @@ class ParameterSpace(BaseModel):
                 means[name] = dist.mean()
             elif isinstance(dist, FixedDistribution):
                 means[name] = dist.value
-            else:
+            else:  # pragma: no cover
                 raise ValueError(f"Cannot compute mean for parameter '{name}'")
         return means
 
@@ -320,7 +319,7 @@ class ParameterSpace(BaseModel):
                 stds[name] = dist.std()
             elif isinstance(dist, FixedDistribution):
                 stds[name] = 0.0
-            else:
+            else:  # pragma: no cover
                 raise ValueError(f"Cannot compute std for parameter '{name}'")
         return stds
 

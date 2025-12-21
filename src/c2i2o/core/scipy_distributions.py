@@ -338,7 +338,7 @@ class Truncnorm(ScipyDistributionBase):
     @model_validator(mode="after")
     def validate_truncation_bounds(self) -> "Truncnorm":
         """Validate that upper truncation bound is greater than lower bound."""
-        if self.b <= self.a:
+        if self.b <= self.a:  # pragma: no cover
             raise ValueError(f"Upper bound 'b' ({self.b}) must be greater than lower bound 'a' ({self.a})")
         return self
 

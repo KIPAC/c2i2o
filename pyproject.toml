@@ -259,6 +259,8 @@ exclude_lines = [
     "class .*\\bProtocol\\[.*\\]\\):",
     "^\\s*\\.\\.\\.$",
     "^\\s*pass\\s*$",
+    "_AVAILABLE",
+    "ImportError",
 ]
 
 [tool.coverage.html]

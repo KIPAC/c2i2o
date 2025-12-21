@@ -11,6 +11,20 @@ from c2i2o.core.scipy_distributions import Norm, Uniform
 from c2i2o.core.tensor import NumpyTensor
 from c2i2o.core.tracer import Tracer, TracerElement
 
+try:
+    import pyccl
+
+    assert pyccl
+    from c2i2o.interfaces.ccl.cosmology import (  # pylint: disable=ungrouped-imports
+        CCLCosmology,
+        CCLCosmologyCalculator,
+        CCLCosmologyVanillaLCDM,
+    )
+
+    PYCCL_AVAILABLE = True
+except ImportError:
+    PYCCL_AVAILABLE = False
+
 
 @pytest.fixture
 def random_state() -> int:
@@ -98,7 +112,9 @@ def simple_parameter_space() -> ParameterSpace:
 
 
 @pytest.fixture
-def simple_tracer_element(simple_numpy_tensor_1d: NumpyTensor) -> TracerElement:
+def simple_tracer_element(
+    simple_numpy_tensor_1d: NumpyTensor,  # pylint: disable=redefined-outer-name
+) -> TracerElement:
     """Simple tracer element for testing."""
     return TracerElement(
         radial_kernel=simple_numpy_tensor_1d,
@@ -108,7 +124,9 @@ def simple_tracer_element(simple_numpy_tensor_1d: NumpyTensor) -> TracerElement:
 
 
 @pytest.fixture
-def simple_tracer(simple_grid_1d: Grid1D) -> Tracer:
+def simple_tracer(
+    simple_grid_1d: Grid1D,  # pylint: disable=redefined-outer-name
+) -> Tracer:
     """Simple tracer with two elements for testing."""
     kernel1 = NumpyTensor(grid=simple_grid_1d, values=np.ones(11))
     kernel2 = NumpyTensor(grid=simple_grid_1d, values=np.ones(11) * 2.0)
@@ -117,3 +135,57 @@ def simple_tracer(simple_grid_1d: Grid1D) -> Tracer:
     element2 = TracerElement(radial_kernel=kernel2, bessel_derivative=1)
 
     return Tracer(elements=[element1, element2], name="test_tracer")
+
+
+@pytest.fixture
+def planck_2018_ccl_cosmology() -> CCLCosmology:
+    """Planck 2018 cosmology using CCL (approximate parameters)."""
+    if not PYCCL_AVAILABLE:
+        pytest.skip("pyccl not installed")
+
+    return CCLCosmology(
+        Omega_c=0.2607,
+        Omega_b=0.0490,
+        h=0.6766,
+        sigma8=0.8102,
+        n_s=0.9665,
+    )
+
+
+@pytest.fixture
+def simple_ccl_cosmology() -> CCLCosmology:
+    """Simple flat LCDM cosmology using CCL."""
+    if not PYCCL_AVAILABLE:
+        pytest.skip("pyccl not installed")
+
+    return CCLCosmology(
+        Omega_c=0.25,
+        Omega_b=0.05,
+        h=0.7,
+        sigma8=0.8,
+        n_s=0.96,
+    )
+
+
+@pytest.fixture
+def simple_ccl_cosmology_vanilla_lcdm() -> CCLCosmologyVanillaLCDM:
+    """Simple flat LCDM cosmology using CCL."""
+    if not PYCCL_AVAILABLE:
+        pytest.skip("pyccl not installed")
+
+    return CCLCosmologyVanillaLCDM()
+
+
+@pytest.fixture
+def simple_ccl_cosmology_calculator() -> CCLCosmologyCalculator:
+    """Simple flat LCDM cosmology using CCL."""
+    if not PYCCL_AVAILABLE:
+        pytest.skip("pyccl not installed")
+
+    return CCLCosmologyCalculator(
+        Omega_c=0.25,
+        Omega_b=0.05,
+        h=0.7,
+        sigma8=0.8,
+        n_s=0.96,
+    )
