@@ -399,41 +399,6 @@ jax >= 0.4          # Optional backend
 
 ---
 
-## Future Development Priorities
-
-### Phase 1: Documentation and CI/CD (Next)
-1. GitHub Actions workflow
-2. README with examples
-3. Sphinx documentation setup
-4. API reference generation
-
-### Phase 2: Extended Functionality (v0.2.0)
-1. Specific intermediate types:
-   - MatterPowerSpectrum
-   - ComovingDistanceEvolution
-   - HubbleEvolution
-2. Observable base classes
-3. More scipy distributions as needed
-
-### Phase 3: Emulation Framework (v0.3.0)
-1. Emulator base classes
-2. Neural network emulators
-3. Gaussian process emulators
-4. Polynomial emulators
-
-### Phase 4: Multiple Backends (v0.4.0)
-1. TensorFlow tensor backend
-2. PyTorch tensor backend
-3. JAX tensor backend (with autodiff)
-
-### Phase 5: Inference Engine (v1.0.0)
-1. MCMC samplers
-2. Nested sampling
-3. Variational inference
-4. Integration with existing packages
-
----
-
 ## Lessons Learned
 
 ### What Worked Well
@@ -525,8 +490,3 @@ jax >= 0.4          # Optional backend
 - [Python Type Hints](https://docs.python.org/3/library/typing.html)
 
 ---
-
-## Acknowledgments
-
-### Development Team
-- Eric Charles (echarles@slac.stanford.
