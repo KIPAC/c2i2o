@@ -76,6 +76,90 @@
 
 ## Module Structure
 
+### src/c2i2o/cli/__init__.py
+
+**Purpose:** Command-line interface package initialization.
+
+**Exports:**
+- cli: Main CLI entry point (Click group)
+- cosmo: Cosmology command group
+
+### src/c2i2o/cli/main.py
+
+**Purpose:** Main CLI entry point and command group registration.
+
+**Functions:**
+- cli(): Main Click group
+  - Provides version option
+  - Registers all command groups (cosmo)
+  - Entry point for 'c2i2o' command
+
+**Configuration:**
+- Entry point: c2i2o = "c2i2o.cli:cli" (in pyproject.toml)
+
+### src/c2i2o/cli/option.py
+
+**Purpose:** Reusable CLI options and custom parameter types.
+
+**Classes:**
+
+- PartialOption: Wrapper for click.option with partial arguments
+  - Enables reusable option definitions across commands
+  - Maintains consistent behavior and documentation
+
+- PartialArgument: Wrapper for click.argument with partial arguments
+  - Enables reusable argument definitions across commands
+
+**Standard Arguments:**
+- config_file_arg: YAML configuration file input (Path, must exist)
+- input_file_arg: HDF5 input file (Path, must exist)
+
+**Standard Options:**
+- output_file_opt: Output HDF5 file path (-o, --output, required)
+- output_dir_opt: Output directory for plots (-d, --output-dir, required)
+- random_seed_opt: Random seed for reproducibility (-s, --random-seed, optional)
+- groupname_opt: HDF5 group name (-g, --groupname, default="parameters")
+- overwrite_opt: Overwrite protection flag (--overwrite, flag)
+- verbose_opt: Verbose output flag (-v, --verbose, flag)
+
+
+### src/c2i2o/cli/cosmo.py
+
+**Purpose:** Commands for cosmological parameter operations.
+
+**Command Group:**
+- cosmo: Parent group for cosmology-related commands
+
+**Commands:**
+- generate: Generate parameter samples from YAML configuration
+  - Arguments: config_file (YAML with ParameterGenerator)
+  - Options: output, groupname, random_seed, overwrite, verbose
+  - Loads ParameterGenerator from YAML
+  - Generates samples with optional random seed
+  - Saves to HDF5 with configurable group name
+  - Overwrite protection (requires --overwrite flag)
+  - Colored success/error messages
+  - Comprehensive error handling
+
+- plot: Plot parameter distributions from HDF5 [PLACEHOLDER]
+  - Arguments: input_file (HDF5 with parameter samples)
+  - Options: output_dir, groupname, verbose
+  - Creates output directory if needed
+  - Placeholder implementation with warning message
+  - TODO: 1D histograms, 2D corner plots, summary statistics
+
+**Features:**
+- Reuses standardized options from option.py
+- Click-based CLI with proper help messages
+- Path validation and error handling
+- Verbose mode for detailed output
+- Reproducible generation with random seeds
+
+**Usage Examples:**
+  c2i2o cosmo generate config.yaml -o samples.h5 -s 42 -v
+  c2i2o cosmo generate config.yaml -o samples.h5 --overwrite
+  c2i2o cosmo plot samples.h5 -d plots/ -v
+
 
 ### src/c2i2o/parameter_generation.py
 
