@@ -80,6 +80,11 @@ dev = [
     
     # Type checking
     "mypy>=1.0",
+    "types-PyYAML",
+
+    # pylint
+    "pylint",
+    "pylint-pydantic",
     
     # Linting and formatting
     "ruff>=0.1.0",
