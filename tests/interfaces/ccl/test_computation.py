@@ -24,13 +24,13 @@ class TestComovingDistanceComputationConfig:
         config = ComovingDistanceComputationConfig(
             computation_type="comoving_distance",
             function="comoving_angular_distance",
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid,
         )
 
         assert config.computation_type == "comoving_distance"
         assert config.function == "comoving_angular_distance"
-        assert config.cosmology_type == "ccl_vanilla"
+        assert config.cosmology_type == "ccl_vanilla_lcdm"
         assert config.eval_grid == grid
 
     def test_default_values(self) -> None:
@@ -38,7 +38,7 @@ class TestComovingDistanceComputationConfig:
         grid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         config = ComovingDistanceComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid,
         )
 
@@ -49,7 +49,7 @@ class TestComovingDistanceComputationConfig:
         """Test that valid CCL cosmology types are accepted."""
         grid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
-        for cosmo_type in ["ccl_vanilla", "ccl_ncdm"]:
+        for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = ComovingDistanceComputationConfig(
                 cosmology_type=cosmo_type,
                 eval_grid=grid,
@@ -77,7 +77,7 @@ class TestComovingDistanceComputationConfig:
 
         for grid in valid_grids:
             config = ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
             assert config.eval_grid == grid
@@ -90,7 +90,7 @@ class TestComovingDistanceComputationConfig:
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -100,7 +100,7 @@ class TestComovingDistanceComputationConfig:
 
         with pytest.raises(ValidationError, match="must be > 0"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
 
@@ -110,7 +110,7 @@ class TestComovingDistanceComputationConfig:
 
         with pytest.raises(ValidationError, match="must be > 0"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
 
@@ -120,7 +120,7 @@ class TestComovingDistanceComputationConfig:
 
         with pytest.raises(ValidationError, match="must be <= 1.0"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
 
@@ -129,7 +129,7 @@ class TestComovingDistanceComputationConfig:
         grid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         config = ComovingDistanceComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid,
         )
         assert cast(Grid1D, config.eval_grid).max_value == 1.0
@@ -141,7 +141,7 @@ class TestComovingDistanceComputationConfig:
         with pytest.raises(ValidationError):
             ComovingDistanceComputationConfig(
                 computation_type="wrong_type",  # type: ignore
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
 
@@ -152,7 +152,7 @@ class TestComovingDistanceComputationConfig:
         with pytest.raises(ValidationError):
             ComovingDistanceComputationConfig(
                 function="wrong_function",  # type: ignore
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
             )
 
@@ -162,7 +162,7 @@ class TestComovingDistanceComputationConfig:
 
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid,
                 extra_field="not allowed",  # type: ignore
             )
@@ -178,13 +178,13 @@ class TestHubbleEvolutionComputationConfig:
         config = HubbleEvolutionComputationConfig(
             computation_type="hubble_evolution",
             function="h_over_h0",
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid,
         )
 
         assert config.computation_type == "hubble_evolution"
         assert config.function == "h_over_h0"
-        assert config.cosmology_type == "ccl_vanilla"
+        assert config.cosmology_type == "ccl_vanilla_lcdm"
         assert config.eval_grid == grid
 
     def test_default_values(self) -> None:
@@ -192,7 +192,7 @@ class TestHubbleEvolutionComputationConfig:
         grid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         config = HubbleEvolutionComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid,
         )
 
@@ -203,7 +203,7 @@ class TestHubbleEvolutionComputationConfig:
         """Test that valid CCL cosmology types are accepted."""
         grid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
-        for cosmo_type in ["ccl_vanilla", "ccl_ncdm"]:
+        for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = HubbleEvolutionComputationConfig(
                 cosmology_type=cosmo_type,
                 eval_grid=grid,
@@ -228,7 +228,7 @@ class TestHubbleEvolutionComputationConfig:
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             HubbleEvolutionComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -237,7 +237,7 @@ class TestHubbleEvolutionComputationConfig:
         # Valid
         grid_valid = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
         config = HubbleEvolutionComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_valid,
         )
         assert config is not None
@@ -246,7 +246,7 @@ class TestHubbleEvolutionComputationConfig:
         grid_zero = Grid1D(min_value=0.0, max_value=1.0, n_points=100)
         with pytest.raises(ValidationError, match="must be > 0"):
             HubbleEvolutionComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_zero,
             )
 
@@ -254,7 +254,7 @@ class TestHubbleEvolutionComputationConfig:
         grid_above = Grid1D(min_value=0.1, max_value=1.1, n_points=100)
         with pytest.raises(ValidationError, match="must be <= 1.0"):
             HubbleEvolutionComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_above,
             )
 
@@ -271,13 +271,13 @@ class TestLinearPowerComputationConfig:
         config = LinearPowerComputationConfig(
             computation_type="linear_power",
             function="linear_power",
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
         assert config.computation_type == "linear_power"
         assert config.function == "linear_power"
-        assert config.cosmology_type == "ccl_vanilla"
+        assert config.cosmology_type == "ccl_vanilla_lcdm"
         assert config.eval_grid == product_grid
 
     def test_default_values(self) -> None:
@@ -287,7 +287,7 @@ class TestLinearPowerComputationConfig:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -300,7 +300,7 @@ class TestLinearPowerComputationConfig:
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
-        for cosmo_type in ["ccl_vanilla", "ccl_ncdm"]:
+        for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = LinearPowerComputationConfig(
                 cosmology_type=cosmo_type,
                 eval_grid=product_grid,
@@ -325,7 +325,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must be ProductGrid"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_1d,
             )
 
@@ -336,7 +336,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must contain 'a'"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -347,7 +347,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must contain 'k'"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -359,7 +359,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -371,7 +371,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -383,7 +383,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="a_grid max_value must be <= 1.0"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -394,7 +394,7 @@ class TestLinearPowerComputationConfig:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
         assert cast(ProductGrid, config.eval_grid).grids["a"].max_value == 1.0
@@ -407,7 +407,7 @@ class TestLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must have logarithmic spacing"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -418,7 +418,7 @@ class TestLinearPowerComputationConfig:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
         assert cast(ProductGrid, config.eval_grid).grids["k"].spacing == "log"
@@ -443,7 +443,7 @@ class TestLinearPowerComputationConfig:
         for a_grid, k_grid in valid_configs:
             product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
             config = LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
             assert config is not None
@@ -457,7 +457,7 @@ class TestLinearPowerComputationConfig:
 
         # Should not raise - extra grids are fine
         config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
         assert "extra" in cast(ProductGrid, config.eval_grid).grids
@@ -475,13 +475,13 @@ class TestNonLinearPowerComputationConfig:
         config = NonLinearPowerComputationConfig(
             computation_type="nonlin_power",
             function="nonlin_power",
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
         assert config.computation_type == "nonlin_power"
         assert config.function == "nonlin_power"
-        assert config.cosmology_type == "ccl_vanilla"
+        assert config.cosmology_type == "ccl_vanilla_lcdm"
         assert config.eval_grid == product_grid
 
     def test_default_values(self) -> None:
@@ -491,7 +491,7 @@ class TestNonLinearPowerComputationConfig:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         config = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -504,7 +504,7 @@ class TestNonLinearPowerComputationConfig:
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
-        for cosmo_type in ["ccl_vanilla", "ccl_ncdm"]:
+        for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = NonLinearPowerComputationConfig(
                 cosmology_type=cosmo_type,
                 eval_grid=product_grid,
@@ -529,7 +529,7 @@ class TestNonLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must be ProductGrid"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_1d,
             )
 
@@ -540,7 +540,7 @@ class TestNonLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must contain 'a'"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -551,7 +551,7 @@ class TestNonLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="must contain 'k'"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -563,7 +563,7 @@ class TestNonLinearPowerComputationConfig:
         a_grid_valid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         product_grid_valid = ProductGrid(grids={"a": a_grid_valid, "k": k_grid})
         config = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid_valid,
         )
         assert config is not None
@@ -573,7 +573,7 @@ class TestNonLinearPowerComputationConfig:
         product_grid_zero = ProductGrid(grids={"a": a_grid_zero, "k": k_grid})
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid_zero,
             )
 
@@ -582,7 +582,7 @@ class TestNonLinearPowerComputationConfig:
         product_grid_above = ProductGrid(grids={"a": a_grid_above, "k": k_grid})
         with pytest.raises(ValidationError, match="a_grid max_value must be <= 1.0"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid_above,
             )
 
@@ -594,7 +594,7 @@ class TestNonLinearPowerComputationConfig:
         k_grid_log = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
         product_grid_log = ProductGrid(grids={"a": a_grid, "k": k_grid_log})
         config = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid_log,
         )
         assert cast(ProductGrid, config.eval_grid).grids["k"].spacing == "log"
@@ -604,7 +604,7 @@ class TestNonLinearPowerComputationConfig:
         product_grid_linear = ProductGrid(grids={"a": a_grid, "k": k_grid_linear})
         with pytest.raises(ValidationError, match="must have logarithmic spacing"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid_linear,
             )
 
@@ -615,12 +615,12 @@ class TestNonLinearPowerComputationConfig:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         linear_config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
         nonlinear_config = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -636,7 +636,7 @@ class TestNonLinearPowerComputationConfig:
         with pytest.raises(ValidationError):
             NonLinearPowerComputationConfig(
                 computation_type="wrong_type",  # type: ignore
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -649,7 +649,7 @@ class TestNonLinearPowerComputationConfig:
         with pytest.raises(ValidationError):
             NonLinearPowerComputationConfig(
                 function="wrong_function",  # type: ignore
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -661,7 +661,7 @@ class TestNonLinearPowerComputationConfig:
 
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
                 extra_field="not allowed",  # type: ignore
             )
@@ -678,22 +678,22 @@ class TestComputationConfigComparison:
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         comoving = ComovingDistanceComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
         )
 
         hubble = HubbleEvolutionComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
         )
 
         linear = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
         nonlinear = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -714,22 +714,22 @@ class TestComputationConfigComparison:
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         comoving = ComovingDistanceComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
         )
 
         hubble = HubbleEvolutionComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
         )
 
         linear = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
         nonlinear = NonLinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -746,13 +746,13 @@ class TestComputationConfigComparison:
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             HubbleEvolutionComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
             )
 
@@ -762,24 +762,24 @@ class TestComputationConfigComparison:
 
         with pytest.raises(ValidationError, match="must be ProductGrid"):
             LinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_1d,
             )
 
         with pytest.raises(ValidationError, match="must be ProductGrid"):
             NonLinearPowerComputationConfig(
-                cosmology_type="ccl_vanilla",
+                cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=grid_1d,
             )
 
     def test_all_configs_accept_both_cosmology_types(self) -> None:
-        """Test that all configs accept both ccl_vanilla and ccl_ncdm."""
+        """Test that all configs accept ccl_vanilla_lcdm and ccl and ccl_calculator."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
-        for cosmo_type in ["ccl_vanilla", "ccl_ncdm"]:
+        for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             # 1D configs
             comoving = ComovingDistanceComputationConfig(
                 cosmology_type=cosmo_type,
@@ -813,7 +813,7 @@ class TestComputationConfigComparison:
         product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
 
         config = LinearPowerComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
 
@@ -836,7 +836,7 @@ class TestComputationConfigComparison:
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         config = ComovingDistanceComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
             eval_kwargs={"some_param": 42},
         )
@@ -848,7 +848,7 @@ class TestComputationConfigComparison:
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         config = HubbleEvolutionComputationConfig(
-            cosmology_type="ccl_vanilla",
+            cosmology_type="ccl_vanilla_lcdm",
             eval_grid=grid_1d,
         )
 

@@ -12,6 +12,8 @@ from pydantic import Field, field_validator
 from c2i2o.core.computation import ComputationConfig
 from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
 
+VALID_COSMOLOGY_TYPES = {"ccl", "ccl_calculator", "ccl_vanilla_lcdm"}
+
 
 class ComovingDistanceComputationConfig(ComputationConfig):
     """Configuration for comoving angular distance computation.
@@ -70,10 +72,10 @@ class ComovingDistanceComputationConfig(ComputationConfig):
         ValueError
             If cosmology_type is not a valid CCL cosmology type.
         """
-        valid_types = {"ccl_vanilla", "ccl_ncdm"}
-        if v not in valid_types:
+        if v not in VALID_COSMOLOGY_TYPES:
             raise ValueError(
-                f"cosmology_type must be a CCL cosmology type, got '{v}'. " f"Valid types: {valid_types}"
+                f"cosmology_type must be a CCL cosmology type, got '{v}'. "
+                f"Valid types: {VALID_COSMOLOGY_TYPES}"
             )
         return v
 
@@ -170,10 +172,10 @@ class HubbleEvolutionComputationConfig(ComputationConfig):
         ValueError
             If cosmology_type is not a valid CCL cosmology type.
         """
-        valid_types = {"ccl_vanilla", "ccl_ncdm"}
-        if v not in valid_types:
+        if v not in VALID_COSMOLOGY_TYPES:
             raise ValueError(
-                f"cosmology_type must be a CCL cosmology type, got '{v}'. " f"Valid types: {valid_types}"
+                f"cosmology_type must be a CCL cosmology type, got '{v}'. "
+                f"Valid types: {VALID_COSMOLOGY_TYPES}"
             )
         return v
 
@@ -280,10 +282,10 @@ class LinearPowerComputationConfig(ComputationConfig):
         ValueError
             If cosmology_type is not a valid CCL cosmology type.
         """
-        valid_types = {"ccl_vanilla", "ccl_ncdm"}
-        if v not in valid_types:
+        if v not in VALID_COSMOLOGY_TYPES:
             raise ValueError(
-                f"cosmology_type must be a CCL cosmology type, got '{v}'. " f"Valid types: {valid_types}"
+                f"cosmology_type must be a CCL cosmology type, got '{v}'. "
+                f"Valid types: {VALID_COSMOLOGY_TYPES}"
             )
         return v
 
@@ -411,10 +413,10 @@ class NonLinearPowerComputationConfig(ComputationConfig):
         ValueError
             If cosmology_type is not a valid CCL cosmology type.
         """
-        valid_types = {"ccl_vanilla", "ccl_ncdm"}
-        if v not in valid_types:
+        if v not in VALID_COSMOLOGY_TYPES:
             raise ValueError(
-                f"cosmology_type must be a CCL cosmology type, got '{v}'. " f"Valid types: {valid_types}"
+                f"cosmology_type must be a CCL cosmology type, got '{v}'. "
+                f"Valid types: {VALID_COSMOLOGY_TYPES}"
             )
         return v
 
