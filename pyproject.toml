@@ -55,6 +55,7 @@ tensorflow = [
 ]
 ccl = [
     "pyccl>=3.0.0",
+    "camb",
 ]
 
 # Cosmology libraries
