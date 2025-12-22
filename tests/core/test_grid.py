@@ -449,3 +449,152 @@ class TestProductGridIO:
         # Total points = 5 * 4 * 3 = 60
         for name in loaded.keys():
             assert len(loaded[name]) == 60
+
+
+class TestGridDiscriminator:
+    """Tests for grid discriminated union functionality."""
+
+    def test_grid1d_has_grid_type(self) -> None:
+        """Test that Grid1D has grid_type field."""
+        grid = Grid1D(min_value=0.0, max_value=10.0, n_points=100)
+
+        assert hasattr(grid, "grid_type")
+        assert grid.grid_type == "grid_1d"
+
+    def test_product_grid_has_grid_type(self) -> None:
+        """Test that ProductGrid has grid_type field."""
+        grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
+        grid2 = Grid1D(min_value=0.0, max_value=5.0, n_points=5)
+        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+
+        assert hasattr(product_grid, "grid_type")
+        assert product_grid.grid_type == "product_grid"
+
+    def test_grid1d_serialization_includes_type(self) -> None:
+        """Test that Grid1D serialization includes grid_type."""
+        grid = Grid1D(min_value=0.0, max_value=10.0, n_points=100)
+
+        data = grid.model_dump()
+
+        assert "grid_type" in data
+        assert data["grid_type"] == "grid_1d"
+
+    def test_product_grid_serialization_includes_type(self) -> None:
+        """Test that ProductGrid serialization includes grid_type."""
+        grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
+        grid2 = Grid1D(min_value=0.0, max_value=5.0, n_points=5)
+        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+
+        data = product_grid.model_dump()
+
+        assert "grid_type" in data
+        assert data["grid_type"] == "product_grid"
+
+    def test_grid1d_deserialization_from_dict(self) -> None:
+        """Test that Grid1D can be deserialized from dict."""
+        grid = Grid1D(
+            grid_type="grid_1d",
+            min_value=0.0,
+            max_value=10.0,
+            n_points=100,
+            spacing="linear",
+            endpoint=True,
+        )
+
+        assert grid.grid_type == "grid_1d"
+        assert grid.min_value == 0.0
+        assert grid.max_value == 10.0
+        assert grid.n_points == 100
+
+    def test_product_grid_deserialization_from_dict(self) -> None:
+        """Test that ProductGrid can be deserialized from dict."""
+        data = {
+            "grid_type": "product_grid",
+            "grids": {
+                "x": {
+                    "grid_type": "grid_1d",
+                    "min_value": 0.0,
+                    "max_value": 10.0,
+                    "n_points": 10,
+                    "spacing": "linear",
+                    "endpoint": True,
+                },
+                "y": {
+                    "grid_type": "grid_1d",
+                    "min_value": 0.0,
+                    "max_value": 5.0,
+                    "n_points": 5,
+                    "spacing": "linear",
+                    "endpoint": True,
+                },
+            },
+        }
+
+        product_grid = ProductGrid(**data)  # type: ignore
+
+        assert product_grid.grid_type == "product_grid"
+        assert "x" in product_grid.grids
+        assert "y" in product_grid.grids
+        assert product_grid.grids["x"].n_points == 10
+        assert product_grid.grids["y"].n_points == 5
+
+    def test_grid1d_roundtrip_serialization(self) -> None:
+        """Test Grid1D roundtrip serialization."""
+        grid = Grid1D(
+            min_value=0.1,
+            max_value=10.0,
+            n_points=50,
+            spacing="log",
+            endpoint=False,
+        )
+
+        # Serialize
+        data = grid.model_dump()
+
+        # Deserialize
+        grid_loaded = Grid1D(**data)
+
+        assert grid_loaded.grid_type == grid.grid_type
+        assert grid_loaded.min_value == grid.min_value
+        assert grid_loaded.max_value == grid.max_value
+        assert grid_loaded.n_points == grid.n_points
+        assert grid_loaded.spacing == grid.spacing
+        assert grid_loaded.endpoint == grid.endpoint
+
+    def test_product_grid_roundtrip_serialization(self) -> None:
+        """Test ProductGrid roundtrip serialization."""
+        grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
+        grid2 = Grid1D(min_value=1.0, max_value=100.0, n_points=20, spacing="log")
+        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+
+        # Serialize
+        data = product_grid.model_dump()
+
+        # Deserialize
+        product_grid_loaded = ProductGrid(**data)
+
+        assert product_grid_loaded.grid_type == product_grid.grid_type
+        assert set(product_grid_loaded.grids.keys()) == set(product_grid.grids.keys())
+        assert product_grid_loaded.grids["x"].n_points == grid1.n_points
+        assert product_grid_loaded.grids["y"].spacing == grid2.spacing
+
+    def test_wrong_grid_type_rejected(self) -> None:
+        """Test that invalid grid_type is rejected."""
+        with pytest.raises(ValidationError):
+            Grid1D(
+                grid_type="invalid_type",  # type: ignore
+                min_value=0.0,
+                max_value=10.0,
+                n_points=100,
+            )
+
+    def test_grid_type_cannot_be_changed(self) -> None:
+        """Test that grid_type Literal enforces the correct value."""
+        # Trying to create Grid1D with product_grid type should fail
+        with pytest.raises(ValidationError):
+            Grid1D(
+                grid_type="product_grid",  # type: ignore
+                min_value=0.0,
+                max_value=10.0,
+                n_points=100,
+            )

@@ -28,6 +28,8 @@ class GridBase(BaseModel, ABC):
     ...         return np.linspace(0, 1, self.n_points)
     """
 
+    grid_type: str = Field(..., description="Type identifier for the grid")
+
     @abstractmethod
     def build_grid(self) -> np.ndarray:
         """Build and return the grid points.
@@ -73,6 +75,7 @@ class Grid1D(GridBase):
     (0.1, 10.0)
     """
 
+    grid_type: Literal["grid_1d"] = Field(default="grid_1d")
     min_value: float = Field(..., description="Minimum value of the grid")
     max_value: float = Field(..., description="Maximum value of the grid")
     n_points: int = Field(..., gt=1, description="Number of grid points")
@@ -214,6 +217,7 @@ class ProductGrid(GridBase):
     (200, 2)
     """
 
+    grid_type: Literal["product_grid"] = Field(default="product_grid")
     grids: dict[str, Grid1D] = Field(..., description="Dictionary of dimension names to Grid1D objects")
 
     @field_validator("grids")

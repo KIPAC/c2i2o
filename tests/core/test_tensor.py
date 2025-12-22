@@ -225,7 +225,7 @@ class TestNumpyTensorCoverageGaps:
             def build_grid(self) -> np.ndarray:
                 return np.linspace(0, 1, 10)
 
-        custom_grid = CustomGrid()
+        custom_grid = CustomGrid(grid_type="none")
         tensor = NumpyTensor(grid=custom_grid, values=np.ones(10))
 
         with pytest.raises(NotImplementedError, match="not implemented for grid type"):

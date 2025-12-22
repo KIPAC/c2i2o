@@ -5,11 +5,16 @@ quantities. Computation configurations specify what to compute, which cosmology
 to use, and at which points to evaluate.
 """
 
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
-from c2i2o.core.grid import GridBase
+from c2i2o.core.grid import Grid1D, ProductGrid
+
+GridUnion = Annotated[
+    Grid1D | ProductGrid,
+    Field(discriminator="grid_type"),
+]
 
 
 class ComputationConfig(BaseModel):
@@ -79,7 +84,7 @@ class ComputationConfig(BaseModel):
         ...,
         description="Type identifier for the cosmology to use (must match CosmologyBase subclass)",
     )
-    eval_grid: GridBase = Field(..., description="Grid defining evaluation points for the computation")
+    eval_grid: GridUnion = Field(..., description="Evaluation grid for function")
     eval_kwargs: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional keyword arguments for the computation function",
