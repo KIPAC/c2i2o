@@ -1,6 +1,163 @@
 # c2i2o Development Log
 
-This file tracks the development progress, decisions, and changes made to the c2i2o package.
+```markdown
+2024-12-21 - CCL Computation Configuration Classes
+
+Session Overview
+
+Implemented computation configuration classes for the CCL (Core Cosmology Library) interface. Added discriminated union support to grid classes for proper serialization/deserialization. Created four concrete computation configurations with comprehensive validation.
+
+Files Created/Modified
+
+Core Module Files
+
+src/c2i2o/core/grid.py (modified)
+
+- Added grid_type field to GridBase for discriminated unions
+- Grid1D: grid_type = Literal["grid_1d"]
+- ProductGrid: grid_type = Literal["product_grid"]
+- Created GridUnion type alias: Annotated[Union[Grid1D, ProductGrid], Field(discriminator="grid_type")]
+- Enables automatic type detection during serialization/deserialization
+
+src/c2i2o/core/computation.py (modified)
+
+- Updated eval_grid field to use GridUnion instead of GridBase
+- Supports full roundtrip serialization with discriminated unions
+- Maintains eval_kwargs for computation-specific parameters
+
+src/c2i2o/interfaces/ccl/computation.py (new)
+
+- ComovingDistanceComputationConfig: 1D scale factor grid for chi(a)
+- HubbleEvolutionComputationConfig: 1D scale factor grid for H(a)/H0
+- LinearPowerComputationConfig: 2D (a, k) grid for P_lin(k, a)
+- NonLinearPowerComputationConfig: 2D (a, k) grid for P_nl(k, a)
+- All inherit from ComputationConfig
+- Dual Literal fields: computation_type (short) and function (CCL function name)
+- Comprehensive validation for physical constraints
+
+Test Files
+
+tests/core/test_grid.py (additions)
+
+- TestGridDiscriminator class with ~10 test cases
+- Serialization/deserialization with grid_type field
+- Roundtrip tests for both grid types
+- Literal field validation
+
+tests/core/test_computation.py (new)
+
+- TestComputationConfig class with ~15 test cases
+- GridUnion serialization/deserialization
+- Roundtrip tests with both Grid1D and ProductGrid
+- eval_kwargs functionality
+
+tests/interfaces/ccl/test_computation.py (new)
+
+- ~70 test cases across all four computation configs
+- Validation tests for all constraints
+- Cosmology type checking
+- Grid structure validation
+- Scale factor and spacing requirements
+
+Major Design Decisions
+
+1. Discriminated Union Pattern for Grids
+
+Problem: Abstract GridBase cannot be deserialized from dict
+
+Solution: Added grid_type Literal field to each grid class
+```python
+class Grid1D(GridBase):
+    grid_type: Literal["grid_1d"] = Field(default="grid_1d")
+
+GridUnion = Annotated[Union[Grid1D, ProductGrid], Field(discriminator="grid_type")]
+```
+
+Benefits:
+- Automatic type detection during deserialization
+- Type-safe serialization roundtrips
+- Pydantic handles discrimination automatically
+- No manual type reconstruction needed
+
+2. Dual Literal Fields in Computation Configs
+
+Decision: Use both computation_type and function fields
+
+Rationale:
+- computation_type: Short identifier for internal use ("linear_power")
+- function: Actual CCL function name for execution ("linear_power")
+- Separates concerns: identification vs. execution
+- Allows for different naming conventions
+
+3. Physical Validation in Grid Validators
+
+Decision: Validate physical constraints at config creation time
+
+Validations:
+- Scale factor: 0 < a <= 1 (physical range)
+- Wavenumber grid: logarithmic spacing (spans orders of magnitude)
+- Grid presence: Required "a" and "k" grids for power spectra
+- Grid types: Grid1D for 1D quantities, ProductGrid for 2D
+
+Benefits:
+- Catches errors early
+- Clear error messages
+- Prevents invalid computations
+- Documents physical requirements
+
+4. CCL Cosmology Type Validation
+
+Decision: Validate cosmology_type against known CCL types
+
+Implementation:
+```python
+valid_types = {"ccl_vanilla", "ccl_ncdm"}
+if v not in valid_types:
+    raise ValueError(...)
+```
+
+Benefits:
+- Ensures compatibility with CCL interface
+- Prevents runtime errors from invalid types
+- Self-documenting (lists valid types in error)
+- Easy to extend with new cosmology types
+
+Technical Challenges and Solutions
+
+Challenge 1: Abstract Class Serialization
+
+Problem: Pydantic can't deserialize abstract base classes
+
+Solution: Discriminated unions with Literal grid_type field
+
+Result: Clean serialization/deserialization without manual type handling
+
+Challenge 2: Nested Discriminated Unions
+
+Problem: ProductGrid contains dict of Grid1D, needs proper serialization
+
+Solution: Pydantic automatically handles nested discriminated unions
+
+Result: Full roundtrip works for ProductGrid containing Grid1D instances
+
+Challenge 3: Validation Order
+
+Problem: Need to validate grid type before checking grid-specific constraints
+
+Solution: Pydantic validators run in order, type check first
+
+Result: Clear error messages, proper validation sequence
+
+Development Time
+
+- Grid discriminator implementation: 0.5 hours
+- CCL computation configs: 2 hours
+- Test development: 2.5 hours
+- Serialization debugging: 1 hour
+- Documentation: 0.5 hours
+
+Total: ~6.5 hours
+
 
 ## src/c2i2o/cli/__init__.py
 

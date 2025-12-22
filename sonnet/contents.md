@@ -30,6 +30,11 @@
 ├── src
 │   └── c2i2o
 │       ├── __init__.py
+│   │   ├── cli
+│   │   │   ├── __init__.py
+│   │   │   ├── cosmo.py
+│   │   │   ├── main.py
+│   │   │   └── option.py
 │       ├── core
 │       │   ├── __init__.py
 │       │   ├── computation.py
@@ -46,20 +51,23 @@
 │       │   ├── __init__.py
 │       │   └── ccl
 │       │       ├── __init__.py
+│   │   │       ├── computation.py
 │       │       └── cosmology.py
 │       ├── parameter_generation.py
 │       └── py.typed
 └── tests
     ├── __init__.py
     ├── conftest.py
+    ├── cli
+    │   └── test_cosmo.py
     ├── core
     │   ├── __init__.py
-    │   ├── multi_distribution.py
     │   ├── test_computation.py
     │   ├── test_cosmology.py
     │   ├── test_distribution.py
     │   ├── test_grid.py
     │   ├── test_intermediate.py
+    │   ├── test_multi_distribution.py
     │   ├── test_parameter_space.py
     │   ├── test_scipy_distributions.py
     │   ├── test_tensor.py
@@ -67,6 +75,7 @@
     ├── interfaces
     │   └── ccl
     │       ├── __init__.py
+    │       ├── test_computation.py
     │       └── test_cosmology.py
     ├── test_import.py
     └── test_parameter_generation.py
@@ -374,33 +383,119 @@
 
 ### src/c2i2o/core/grid.py
 
-**Purpose**: Grid definitions for function evaluations.
+**Purpose:** Grid classes for defining evaluation points in parameter space.
 
-**Classes**:
-- `GridBase`: Abstract base class for grids
-  - Abstract method: `build_grid()` → np.ndarray
+**Classes:**
+- GridBase: Abstract base class for all grids
+  - Required field: grid_type (string identifier for discriminated unions)
+  - Abstract method: build_grid()
+  - Uses Pydantic for parameter validation
 
-- `Grid1D`: One-dimensional grid
-  - Parameters: `min_value`, `max_value`, `n_points`
-  - `spacing`: "linear" or "log"
-  - `endpoint`: Include endpoint (default: True)
-  - Validators: max > min, min > 0 for log spacing
-  - Properties: `step_size`, `log_step_size`
+- Grid1D: One-dimensional grid
+  - grid_type: Literal["grid_1d"]
+  - Fields: min_value, max_value, n_points, spacing ("linear" or "log"), endpoint
+  - Validation: max > min, n_points > 0, positive values for log spacing
+  - Methods: build_grid() creates NumPy array of evaluation points
+  - Supports linear and logarithmic spacing
 
-- `ProductGrid`: Cartesian product of 1D grids
-  - Field: `grids` (dict[str, Grid1D])
-  - Properties: `dimension_names`, `n_dimensions`, `total_points`
-  - Methods:
-    - `build_grid()`: Flat array (n_total, n_dims)
-    - `build_grid_dict()`: Dict of flat arrays
-    - `build_grid_structured()`: Dict of meshgrid arrays
+- ProductGrid: Cartesian product of multiple 1D grids
+  - grid_type: Literal["product_grid"]
+  - Field: grids (dict mapping names to Grid1D instances)
+  - Validation: At least one grid required, all grids must be Grid1D
+  - Methods: build_grid() creates meshgrid arrays
+  - Properties: shape, n_dim
+  - Used for multi-dimensional parameter spaces
 
-**Design Decisions**:
-- Separate 1D and product grids for clarity
-- Multiple output formats for different use cases
-- Dimension names preserved in product grids
-- Support for both linear and logarithmic spacing
+**Design Decisions:**
+- grid_type field enables discriminated unions for serialization
+- Literal types ensure type safety
+- Abstract base allows for custom grid implementations
+- Pydantic validation ensures parameter correctness
+- Full serialization/deserialization support via discriminated unions
 
+**GridUnion Type Alias:**
+- Annotated[Union[Grid1D, ProductGrid], Field(discriminator="grid_type")]
+- Enables automatic type detection during deserialization
+- Used in ComputationConfig for eval_grid field
+
+---
+
+### src/c2i2o/core/computation.py
+
+**Purpose:** Base classes for computation configurations.
+
+**Classes:**
+- ComputationConfig: Configuration for cosmological computations
+  - Required fields:
+    - computation_type: String identifier for the computation
+    - cosmology_type: Type identifier for the cosmology to use
+    - eval_grid: GridUnion (Grid1D or ProductGrid) defining evaluation points
+  - Optional fields:
+    - eval_kwargs: Dict of additional keyword arguments for computation function
+  - Uses discriminated union (GridUnion) for eval_grid
+  - Full serialization/deserialization support
+  - Used as base class for specific computation configurations
+
+**Design Decisions:**
+- computation_type allows for flexible computation identification
+- cosmology_type links computation to specific cosmology implementation
+- eval_grid uses GridUnion for type-safe grid handling
+- eval_kwargs provides extensibility for computation-specific parameters
+- Pydantic BaseModel for validation and serialization
+
+
+### src/c2i2o/interfaces/ccl/computation.py
+
+**Purpose:** Computation configuration classes for CCL (Core Cosmology Library) interface.
+
+**Classes:**
+- ComovingDistanceComputationConfig: Comoving angular distance computation
+  - computation_type: Literal["comoving_distance"]
+  - function: Literal["comoving_angular_distance"] (CCL function name)
+  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
+  - eval_grid: Grid1D with 0 < min < max <= 1 (scale factor range)
+  - Validates scale factor bounds for physical consistency
+
+- HubbleEvolutionComputationConfig: Hubble parameter evolution H(a)/H0
+  - computation_type: Literal["hubble_evolution"]
+  - function: Literal["h_over_h0"] (CCL function name)
+  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
+  - eval_grid: Grid1D with 0 < min < max <= 1 (scale factor range)
+  - Validates scale factor bounds for physical consistency
+
+- LinearPowerComputationConfig: Linear matter power spectrum P_lin(k, a)
+  - computation_type: Literal["linear_power"]
+  - function: Literal["linear_power"] (CCL function name)
+  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
+  - eval_grid: ProductGrid with:
+    - a_grid: Grid1D with 0 < min < max <= 1 (scale factor)
+    - k_grid: Grid1D with logarithmic spacing (wavenumber in h/Mpc)
+  - Validates both grid presence and properties
+
+- NonLinearPowerComputationConfig: Non-linear matter power spectrum P_nl(k, a)
+  - computation_type: Literal["nonlin_power"]
+  - function: Literal["nonlin_power"] (CCL function name)
+  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
+  - eval_grid: ProductGrid with:
+    - a_grid: Grid1D with 0 < min < max <= 1 (scale factor)
+    - k_grid: Grid1D with logarithmic spacing (wavenumber in h/Mpc)
+  - Validates both grid presence and properties
+
+**Validation Features:**
+- CCL cosmology type checking (ccl_vanilla, ccl_ncdm)
+- Grid type validation (Grid1D vs ProductGrid)
+- Scale factor range validation (0 < a <= 1)
+- Logarithmic spacing requirement for wavenumber grids
+- Required grid name checking ("a" and "k" for power spectra)
+- Clear error messages for validation failures
+
+**Design Decisions:**
+- Two separate Literal fields (computation_type and function) for clarity
+- computation_type: Short identifier for internal use
+- function: Actual CCL function name for execution
+- Inherits from ComputationConfig for consistency
+- Field validators ensure physical and computational constraints
+- Supports full serialization via Pydantic
 ---
 
 ### src/c2i2o/core/tensor.py
