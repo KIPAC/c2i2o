@@ -124,6 +124,16 @@ input_file_arg = PartialArgument(
 # Standard Options
 # ============================================================================
 
+input_file_opt = click.option(
+    "--input",
+    "-i",
+    "input_file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Input HDF5 file with parameters",
+)
+"""Input HDF5 file path option (required)."""
+
 output_file_opt = PartialOption(
     "--output",
     "-o",
