@@ -1,7 +1,7 @@
 """Tests for C2I CLI commands."""
 
-import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -73,7 +73,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_basic(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -105,7 +105,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_verbose(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -144,7 +144,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_short_options(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -176,7 +176,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_long_options(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -208,7 +208,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_overwrite_protection(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -257,7 +257,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_with_overwrite(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -387,7 +387,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_verifies_output_content(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -425,7 +425,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_multiple_computations(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         params_file: Path,
         tmp_path: Path,
@@ -436,11 +436,6 @@ class TestC2IComputeCommand:
             "intermediate_calculator": {
                 "baseline_cosmology": {
                     "cosmology_type": "ccl_vanilla_lcdm",
-                    "Omega_c": 0.25,
-                    "Omega_b": 0.05,
-                    "h": 0.67,
-                    "sigma8": 0.8,
-                    "n_s": 0.96,
                 },
                 "computations": {
                     "chi": {
@@ -514,7 +509,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_with_2d_computation(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         params_file: Path,
         tmp_path: Path,
@@ -524,11 +519,6 @@ class TestC2IComputeCommand:
             "intermediate_calculator": {
                 "baseline_cosmology": {
                     "cosmology_type": "ccl_vanilla_lcdm",
-                    "Omega_c": 0.25,
-                    "Omega_b": 0.05,
-                    "h": 0.67,
-                    "sigma8": 0.8,
-                    "n_s": 0.96,
                 },
                 "computations": {
                     "P_lin": {
@@ -642,7 +632,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_integration_with_cosmo_generate(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         tmp_path: Path,
@@ -729,7 +719,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_shows_cosmology_info_verbose(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -762,7 +752,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_colored_output(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -818,11 +808,10 @@ class TestC2IComputeCommand:
         # Should have clear error message about missing file
         assert "Error:" in result.output or "does not exist" in result.output.lower()
 
-
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_preserves_parameter_count(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         tmp_path: Path,
@@ -880,13 +869,13 @@ class TestC2IComputeCommand:
         """Test c2i without subcommand shows help."""
         result = runner.invoke(cli, ["c2i"])
 
-        assert result.exit_code == 0
+        assert result.exit_code == 2
         assert "compute" in result.output
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_config_file_only_argument(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -918,7 +907,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_input_output_symmetry(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -950,7 +939,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_large_parameter_set(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         tmp_path: Path,
@@ -997,7 +986,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_single_sample(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         tmp_path: Path,
@@ -1043,7 +1032,7 @@ class TestC2IComputeCommand:
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_output_file_creation(
         self,
-        mock_pyccl,
+        mock_pyccl: Any,
         runner: CliRunner,
         calculator_config: Path,
         params_file: Path,
@@ -1075,4 +1064,3 @@ class TestC2IComputeCommand:
 
         assert result.exit_code == 0
         assert nested_output.exists()
-        

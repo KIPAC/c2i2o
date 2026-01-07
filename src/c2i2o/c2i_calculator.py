@@ -6,9 +6,10 @@ parameter input to intermediate output.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+import yaml
 from pydantic import BaseModel, Field
 from tables_io import read, write
 
@@ -215,7 +216,7 @@ class C2ICalculator(BaseModel):
             for name, intermediate in intermediate_set.intermediates.items():
                 # Create flattened key
                 key = f"sample_{i:03d}_{name}"
-                output_data[key] = intermediate.tensor.values
+                output_data[key] = cast(NumpyTensor, intermediate.tensor).values
 
         # Write to output file
         try:
@@ -259,7 +260,7 @@ class C2ICalculator(BaseModel):
             sample_data = {}
 
             for name, intermediate in intermediate_set.intermediates.items():
-                sample_data[name] = intermediate.tensor.values
+                sample_data[name] = cast(NumpyTensor, intermediate.tensor).values
 
             output_dict[sample_name] = sample_data
 
@@ -284,15 +285,13 @@ class C2ICalculator(BaseModel):
         - Computation definitions and grids
         - All configuration needed to recreate the calculator
         """
-        import yaml
-
         filepath = Path(filepath)
 
         # Convert to dict, handling NumPy arrays
         data = self.model_dump()
 
         # Custom YAML representer for NumPy arrays
-        def numpy_representer(dumper: yaml.Dumper, data: np.ndarray) -> yaml.Node:
+        def numpy_representer(dumper: yaml.Dumper, data: np.ndarray) -> yaml.Node:  # pragma: no cover
             return dumper.represent_list(data.tolist())
 
         yaml.add_representer(np.ndarray, numpy_representer)
@@ -332,8 +331,6 @@ class C2ICalculator(BaseModel):
         as saved by to_yaml(). Lists in YAML are automatically converted
         to NumPy arrays where needed by Pydantic validation.
         """
-        import yaml
-
         filepath = Path(filepath)
 
         if not filepath.exists():

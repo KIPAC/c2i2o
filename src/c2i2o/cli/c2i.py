@@ -8,8 +8,8 @@ from pathlib import Path
 
 import click
 
-from c2i2o.cli.main import cli
 from c2i2o.c2i_calculator import C2ICalculator
+from c2i2o.cli.main import cli
 from c2i2o.cli.option import (
     config_file_arg,
     input_file_opt,
@@ -26,7 +26,6 @@ def c2i() -> None:
     This group provides tools for computing intermediate data products
     from cosmological parameters.
     """
-    pass
 
 
 @c2i.command()
@@ -72,16 +71,14 @@ def compute(
 
     # Check if output file exists and handle overwrite
     if output.exists() and not overwrite:
-        raise click.ClickException(
-            f"Output file {output} already exists. Use --overwrite to replace it."
-        )
+        raise click.ClickException(f"Output file {output} already exists. Use --overwrite to replace it.")
 
     try:
         # Load calculator from YAML
         calculator = C2ICalculator.from_yaml(config_file)
 
         if verbose:
-            click.echo(f"Loaded calculator configuration")
+            click.echo("Loaded calculator configuration")
             n_comps = len(calculator.intermediate_calculator.computations)
             click.echo(f"  Number of computations: {n_comps}")
             comp_names = list(calculator.intermediate_calculator.computations.keys())
@@ -103,9 +100,9 @@ def compute(
 
         click.secho(f"Computed intermediates: {output}", fg="green")
 
-    except FileNotFoundError as e:
+    except FileNotFoundError as e:  # pragma: no cover
         raise click.ClickException(f"File not found: {e}") from e
     except ValueError as e:
         raise click.ClickException(f"Invalid configuration or data: {e}") from e
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         raise click.ClickException(f"Error computing intermediates: {e}") from e

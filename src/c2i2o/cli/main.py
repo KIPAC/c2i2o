@@ -5,6 +5,7 @@ This module defines the main CLI group and registers all subcommands.
 
 import click
 
+
 @click.group()
 @click.version_option()
 def cli() -> None:

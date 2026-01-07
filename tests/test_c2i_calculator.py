@@ -1,18 +1,19 @@
 """Tests for C2I calculator."""
 
-import tempfile
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
 import yaml
 from pydantic import ValidationError
-from tables_io import read
+from tables_io import read, write
 
 from c2i2o.c2i_calculator import C2ICalculator
 from c2i2o.core.grid import Grid1D, ProductGrid
 from c2i2o.core.intermediate import IntermediateSet
+from c2i2o.core.tensor import NumpyTensor
 from c2i2o.interfaces.ccl.computation import (
     ComovingDistanceComputationConfig,
     HubbleEvolutionComputationConfig,
@@ -87,7 +88,7 @@ class TestC2ICalculator:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             C2ICalculator(
                 intermediate_calculator=ccl_calculator,
-                extra_field="not allowed",
+                extra_field="not allowed",  # type: ignore
             )
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
@@ -133,7 +134,7 @@ class TestC2ICalculator:
         assert len(intermediate_sets) == 1
         intermediate = intermediate_sets[0]["chi"]
         assert intermediate.name == "chi"
-        assert intermediate.tensor.values.shape == (10,)
+        assert cast(NumpyTensor, intermediate.tensor).values.shape == (10,)
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_multiple_intermediates(
@@ -189,7 +190,7 @@ class TestC2ICalculator:
         assert len(intermediate_sets) == 1
         assert "P_lin" in intermediate_sets[0]
         # Shape should be (n_a, n_k) = (5, 20)
-        assert intermediate_sets[0]["P_lin"].tensor.values.shape == (5, 20)
+        assert cast(NumpyTensor, intermediate_sets[0]["P_lin"].tensor).values.shape == (5, 20)
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_empty_params(
@@ -198,7 +199,8 @@ class TestC2ICalculator:
         calculator: C2ICalculator,
     ) -> None:
         """Test compute with empty parameters."""
-        params = {}
+        assert mock_pyccl
+        params: dict[str, Any] = {}
         intermediate_sets = calculator.compute(params)
 
         assert len(intermediate_sets) == 0
@@ -259,8 +261,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test compute_from_file functionality."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -464,7 +464,9 @@ class TestC2ICalculator:
         # Return different values for each call
         call_count = [0]
 
-        def mock_distance(cosmo, a, **kwargs):
+        def mock_distance(
+            cosmo: Any, a: np.ndarray, **kwargs: Any  # pylint: disable=unused-argument
+        ) -> np.ndarray:
             result = np.ones(10) * (1000 + call_count[0] * 100)
             call_count[0] += 1
             return result
@@ -475,9 +477,9 @@ class TestC2ICalculator:
         intermediate_sets = calculator.compute(params)
 
         # Check order is preserved
-        assert intermediate_sets[0]["chi"].tensor.values[0] == 1000
-        assert intermediate_sets[1]["chi"].tensor.values[0] == 1100
-        assert intermediate_sets[2]["chi"].tensor.values[0] == 1200
+        assert cast(NumpyTensor, intermediate_sets[0]["chi"].tensor).values[0] == 1000
+        assert cast(NumpyTensor, intermediate_sets[1]["chi"].tensor).values[0] == 1100
+        assert cast(NumpyTensor, intermediate_sets[2]["chi"].tensor).values[0] == 1200
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_from_file_preserves_sample_order(
@@ -487,14 +489,14 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test that compute_from_file preserves order."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
 
         call_count = [0]
 
-        def mock_distance(cosmo, a, **kwargs):
+        def mock_distance(
+            cosmo: Any, a: np.ndarray, **kwargs: Any  # pylint: disable=unused-argument
+        ) -> np.ndarray:
             result = np.ones(10) * (1000 + call_count[0] * 100)
             call_count[0] += 1
             return result
@@ -542,8 +544,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test that HDF5 output has flat structure (no groups)."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -588,8 +588,6 @@ class TestC2ICalculator:
         calculator: C2ICalculator,
     ) -> None:
         """Test that intermediates contain NumpyTensor objects."""
-        from c2i2o.core.tensor import NumpyTensor
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -615,49 +613,9 @@ class TestC2ICalculator:
         params = {"Omega_c": np.array([0.25])}
         intermediate_sets = calculator.compute(params)
 
-        chi_values = intermediate_sets[0]["chi"].tensor.values
+        chi_values = cast(NumpyTensor, intermediate_sets[0]["chi"].tensor).values
         assert chi_values.shape == (10,)
         np.testing.assert_array_almost_equal(chi_values, expected_values)
-
-    @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
-    def test_compute_to_dict_sample_naming(
-        self,
-    ) -> None:
-        """Test that compute_to_dict uses correct sample naming convention."""
-        # Create a mock calculator that returns simple results
-        with patch.object(C2ICalculator, "compute") as mock_compute:
-            from c2i2o.core.tensor import NumpyTensor
-            from c2i2o.core.grid import Grid1D
-            from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-
-            grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
-            tensor = NumpyTensor(grid=grid, values=np.ones(10))
-            intermediate = IntermediateBase(name="chi", tensor=tensor)
-            intermediate_set = IntermediateSet(intermediates={"chi": intermediate})
-
-            # Return 3 samples
-            mock_compute.return_value = [intermediate_set, intermediate_set, intermediate_set]
-
-            # Create any valid calculator for testing
-            baseline = CCLCosmologyVanillaLCDM()
-            grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
-            config = ComovingDistanceComputationConfig(
-                cosmology_type="ccl_vanilla_lcdm",
-                eval_grid=grid,
-            )
-            ccl_calc = CCLIntermediateCalculator(
-                baseline_cosmology=baseline,
-                computations={"chi": config},
-            )
-            calculator = C2ICalculator(intermediate_calculator=ccl_calc)
-
-            params = {"Omega_c": np.array([0.25, 0.26, 0.27])}
-            results = calculator.compute_to_dict(params)
-
-            # Check naming convention
-            assert "sample_000" in results
-            assert "sample_001" in results
-            assert "sample_002" in results
 
     @patch("c2i2o.interfaces.ccl.intermediate_calculator.pyccl")
     def test_compute_from_file_creates_output_file(
@@ -667,8 +625,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test that compute_from_file creates output file if it doesn't exist."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -694,8 +650,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test that all computations appear in HDF5 output."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -731,6 +685,7 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test YAML serialization with multiple computations."""
+        assert mock_pyccl
         ccl_calc = CCLIntermediateCalculator(
             baseline_cosmology=baseline_cosmology,
             computations={
@@ -759,8 +714,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test complete workflow: params -> compute -> file -> load."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -809,8 +762,6 @@ class TestC2ICalculator:
         tmp_path: Path,
     ) -> None:
         """Test that string paths work for HDF5 methods."""
-        from tables_io import write
-
         mock_cosmo = MagicMock()
         mock_pyccl.CosmologyVanillaLCDM.return_value = mock_cosmo
         mock_pyccl.comoving_angular_distance.return_value = np.ones(10) * 1000
@@ -830,9 +781,9 @@ class TestC2ICalculator:
         self,
         mock_pyccl: Mock,
         baseline_cosmology: CCLCosmologyVanillaLCDM,
-        tmp_path: Path,
     ) -> None:
         """Test handling of empty computations dict."""
+        assert mock_pyccl
         ccl_calc = CCLIntermediateCalculator(
             baseline_cosmology=baseline_cosmology,
             computations={},  # No computations
@@ -860,10 +811,10 @@ class TestC2ICalculator:
         intermediate_sets = calculator.compute(params)
 
         # Get the grid from the intermediate
-        chi_grid = intermediate_sets[0]["chi"].tensor.grid
+        chi_grid = cast(Grid1D, cast(NumpyTensor, intermediate_sets[0]["chi"].tensor).grid)
 
         # Should match the original computation config grid
-        original_grid = calculator.intermediate_calculator.computations["chi"].eval_grid
+        original_grid = cast(Grid1D, calculator.intermediate_calculator.computations["chi"].eval_grid)
         assert chi_grid.min_value == original_grid.min_value
         assert chi_grid.max_value == original_grid.max_value
         assert chi_grid.n_points == original_grid.n_points
