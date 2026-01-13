@@ -1,0 +1,29 @@
+# Example 1: Simple cosmological parameter generation
+# Generates parameters with independent Gaussian priors
+
+num_samples: 1000
+scale_factor: 1.0
+
+parameter_space:
+  parameters:
+    # Spectral index (Gaussian prior)
+    n_s:
+      dist_type: norm
+      loc: 0.965
+      scale: 0.004
+
+multi_distribution_set:
+  distributions:
+    # Correlated matter density and sigma_8
+    - dist_type: multi_gauss
+      mean: [0.25, 0.05, 0.67, 0.8]
+      cov:
+        - [0.001, 0.0001, 0.0002, 0.0005]
+        - [0.0001, 0.0001, 0.00005, 0.0001]
+        - [0.0002, 0.00005, 0.001, 0.0002]
+        - [0.0005, 0.0001, 0.0002, 0.01]
+      param_names:
+        - Omega_c
+        - Omega_b
+        - h
+        - sigma8

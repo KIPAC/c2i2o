@@ -1,0 +1,25 @@
+# Simple C2ICalculator configuration
+# Computes only comoving distance
+
+intermediate_calculator:
+  baseline_cosmology:
+    cosmology_type: ccl
+    Omega_c: 0.25
+    Omega_b: 0.05
+    h: 0.67
+    sigma8: 0.8
+    n_s: 0.96
+
+  computations:
+    chi:
+      computation_type: comoving_distance
+      function: comoving_angular_distance
+      cosmology_type: ccl_vanilla_lcdm
+      eval_grid:
+        grid_type: grid_1d
+        min_value: 0.1
+        max_value: 1.0
+        n_points: 50
+        spacing: linear
+        endpoint: true
+      eval_kwargs: {}

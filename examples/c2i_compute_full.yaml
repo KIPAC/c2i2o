@@ -1,0 +1,90 @@
+# Example C2ICalculator configuration for c2i2o c2i compute
+# This file demonstrates how to configure intermediate computations
+
+intermediate_calculator:
+  # Baseline cosmology configuration
+  baseline_cosmology:
+    cosmology_type: ccl
+    Omega_c: 0.25      # Cold dark matter density
+    Omega_b: 0.05      # Baryon density
+    h: 0.67            # Hubble parameter
+    sigma8: 0.8        # Amplitude of matter fluctuations
+    n_s: 0.96          # Spectral index
+
+  # Computations to perform
+  computations:
+    # Comoving angular distance as function of scale factor
+    chi:
+      computation_type: comoving_distance
+      function: comoving_angular_distance
+      cosmology_type: ccl_vanilla_lcdm
+      eval_grid:
+        grid_type: grid_1d
+        min_value: 0.1      # Minimum scale factor
+        max_value: 1.0      # Maximum scale factor (today)
+        n_points: 100       # Number of evaluation points
+        spacing: linear     # Linear spacing in scale factor
+        endpoint: true
+      eval_kwargs: {}
+
+    # Hubble parameter evolution H(a)/H0
+    H_over_H0:
+      computation_type: hubble_evolution
+      function: h_over_h0
+      cosmology_type: ccl_vanilla_lcdm
+      eval_grid:
+        grid_type: grid_1d
+        min_value: 0.1
+        max_value: 1.0
+        n_points: 100
+        spacing: linear
+        endpoint: true
+      eval_kwargs: {}
+
+    # Linear matter power spectrum P_lin(k, a)
+    P_lin:
+      computation_type: linear_power
+      function: linear_power
+      cosmology_type: ccl_vanilla_lcdm
+      eval_grid:
+        grid_type: product_grid
+        grids:
+          a:  # Scale factor grid
+            grid_type: grid_1d
+            min_value: 0.5
+            max_value: 1.0
+            n_points: 10
+            spacing: linear
+            endpoint: true
+          k:  # Wavenumber grid (h/Mpc)
+            grid_type: grid_1d
+            min_value: 0.001    # Minimum k
+            max_value: 10.0     # Maximum k
+            n_points: 100       # Number of k points
+            spacing: log        # Logarithmic spacing (required)
+            endpoint: true
+      eval_kwargs: {}
+
+    # Non-linear matter power spectrum P_nl(k, a)
+    P_nl:
+      computation_type: nonlin_power
+      function: nonlin_power
+      cosmology_type: ccl_vanilla_lcdm
+      eval_grid:
+        grid_type: product_grid
+        grids:
+          a:
+            grid_type: grid_1d
+            min_value: 0.5
+            max_value: 1.0
+            n_points: 10
+            spacing: linear
+            endpoint: true
+          k:
+            grid_type: grid_1d
+            min_value: 0.001
+            max_value: 10.0
+            n_points: 100
+            spacing: log
+            endpoint: true
+      eval_kwargs: {}

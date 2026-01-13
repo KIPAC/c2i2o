@@ -1,0 +1,76 @@
+# Example 3: High-precision parameter generation for emulator training
+# Dense sampling with tighter priors around Planck best-fit
+
+num_samples: 10000
+scale_factor: 0.5  # Tighter priors (half the width)
+
+parameter_space:
+  parameters:
+    # Fixed parameters
+    N_eff:
+      dist_type: fixed
+      value: 3.046
+
+    # Spectral index (tight prior)
+    n_s:
+      dist_type: norm
+      loc: 0.9649
+      scale: 0.0042
+
+    # Optical depth (tight prior, truncated)
+    tau:
+      dist_type: truncnorm
+      a: 0.0
+      b: 5.0
+      loc: 0.0544
+      scale: 0.0073
+
+    # Sum of neutrino masses (uniform in log space)
+    log_m_nu:
+      dist_type: uniform
+      loc: -2.0      # log10(0.01 eV)
+      scale: 1.5     # up to log10(~0.3 eV)
+
+multi_distribution_set:
+  distributions:
+    # High-precision Planck-like constraints
+    # Based on Planck 2018 + BAO + SN
+    - dist_type: multi_gauss
+      mean: [0.2664, 0.04930, 0.6736, 0.8111]
+      cov:
+        # Realistic correlation structure from Planck
+        - [0.000049, 0.0000024, 0.000056, 0.000096]
+        - [0.0000024, 0.0000016, 0.0000012, 0.0000032]
+        - [0.000056, 0.0000012, 0.000121, 0.000024]
+        - [0.000096, 0.0000032, 0.000024, 0.000169]
+      param_names:
+        - Omega_c
+        - Omega_b
+        - h
+        - sigma8
+
+    # Primordial amplitude with Planck precision
+    - dist_type: multi_lognormal
+      mean: [-3.0447]  # ln(A_s) center
+      cov:
+        - [0.0016]     # Tight constraint
+      param_names:
+        - A_s
+
+    # Curvature (tight constraint around flat)
+    - dist_type: multi_gauss
+      mean: [0.0]
+      cov:
+        - [0.0004]  # Omega_k very close to 0
+      param_names:
+        - Omega_k
+
+    # Dark energy (assume LCDM but allow small variations)
+    - dist_type: multi_gauss
+      mean: [-1.0, 0.0]
+      cov:
+        - [0.01, 0.005]
+        - [0.005, 0.04]
+      param_names:
+        - w0
+        - wa

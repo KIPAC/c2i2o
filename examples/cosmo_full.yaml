@@ -1,0 +1,69 @@
+# Example 2: Comprehensive cosmological parameter generation
+# Includes various distribution types and wider parameter space
+
+num_samples: 5000
+scale_factor: 1.2  # Inflate uncertainties by 20%
+
+parameter_space:
+  parameters:
+    # Effective number of relativistic species (fixed)
+    N_eff:
+      dist_type: fixed
+      value: 3.046
+
+    # Spectral index (Gaussian)
+    n_s:
+      dist_type: norm
+      loc: 0.965
+      scale: 0.004
+
+    # Optical depth (truncated normal to ensure positivity)
+    tau:
+      dist_type: truncnorm
+      a: 0.0            # Lower bound (in standard deviations)
+      b: 10.0           # Upper bound
+      loc: 0.054
+      scale: 0.007
+
+    # Running of spectral index (Gaussian, can be negative)
+    alpha_s:
+      dist_type: norm
+      loc: 0.0
+      scale: 0.01
+
+multi_distribution_set:
+  distributions:
+    # Primary cosmological parameters with realistic correlations
+    # (Omega_c, Omega_b, h, sigma8)
+    - dist_type: multi_gauss
+      mean: [0.265, 0.0493, 0.674, 0.811]
+      cov:
+        - [0.00081, 0.000012, 0.00032, 0.00056]
+        - [0.000012, 0.000016, 0.000008, 0.000024]
+        - [0.00032, 0.000008, 0.000784, 0.00014]
+        - [0.00056, 0.000024, 0.00014, 0.00169]
+      param_names:
+        - Omega_c
+        - Omega_b
+        - h
+        - sigma8
+
+    # Primordial amplitude (log-normal to ensure positivity)
+    # exp(mean) gives ln(10^10 A_s)
+    - dist_type: multi_lognormal
+      mean: [-3.044]  # exp(-3.044) ≈ 2.1e-9 for A_s
+      cov:
+        - [0.0025]
+      param_names:
+        - A_s
+
+    # Dark energy equation of state parameters
+    # w(a) = w0 + wa * (1 - a)
+    - dist_type: multi_gauss
+      mean: [-1.0, 0.0]
+      cov:
+        - [0.04, 0.02]     # Correlation between w0 and wa
+        - [0.02, 0.09]
+      param_names:
+        - w0
+        - wa

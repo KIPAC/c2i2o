@@ -1,0 +1,44 @@
+# Advanced C2ICalculator configuration
+# Uses generic CCL cosmology with dark energy equation of state
+
+intermediate_calculator:
+  baseline_cosmology:
+    cosmology_type: ccl
+    Omega_c: 0.25
+    Omega_b: 0.05
+    h: 0.67
+    sigma8: 0.8
+    n_s: 0.96
+    # Additional parameters for generic cosmology
+    Omega_k: 0.0        # Curvature
+    w0: -1.0            # Dark energy equation of state (constant term)
+    wa: 0.0             # Dark energy equation of state (evolution)
+    m_nu: 0.06          # Sum of neutrino masses (eV)
+    Neff: 3.046         # Effective number of relativistic species
+    transfer_function: boltzmann_camb
+    matter_power_spectrum: halofit
+
+  computations:
+    # High-resolution power spectrum for emulator training
+    P_lin_hires:
+      computation_type: linear_power
+      function: linear_power
+      cosmology_type: ccl
+      eval_grid:
+        grid_type: product_grid
+        grids:
+          a:
+            grid_type: grid_1d
+            min_value: 0.2      # Earlier times
+            max_value: 1.0
+            n_points: 20        # More redshift points
+            spacing: linear
+            endpoint: true
+          k:
+            grid_type: grid_1d
+            min_value: 1e-4     # Lower k for large scales
+            max_value: 100.0    # Higher k for small scales
+            n_points: 200       # High resolution
+            spacing: log
+            endpoint: true
+      eval_kwargs: {}
