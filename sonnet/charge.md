@@ -8,9 +8,7 @@
 
 This is your charge.
 
-Further design notes are in sonnet/design_notes.md
 Current package contents are listed in sonnet/contents.md
-The log of our work in in sonnet/log.md
 
 ---
 
