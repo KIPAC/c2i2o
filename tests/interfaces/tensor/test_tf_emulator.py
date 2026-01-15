@@ -14,21 +14,22 @@ from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
 
 # Check if TensorFlow is available
 import warnings
+
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
     message="In the future `np.object` will be defined as the corresponding NumPy scalar",
-)    
+)
 try:
     import tensorflow as tf
     from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
     from c2i2o.interfaces.tensor.tf_tensor import TFTensor
+
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
 
 pytestmark = pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not installed")
-
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ class TestTFC2IEmulatorInitialization:
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
-        
+
         assert emulator.name == "test_emulator"
         assert emulator.intermediate_names == ["P_lin"]
         assert emulator.emulator_type == "tf_c2i"
@@ -67,7 +68,7 @@ class TestTFC2IEmulatorInitialization:
             learning_rate=0.0001,
             activation="relu",
         )
-        
+
         assert emulator.hidden_layers == [128, 64, 32]
         assert emulator.learning_rate == 0.0001
         assert emulator.activation == "relu"
@@ -79,7 +80,7 @@ class TestTFC2IEmulatorInitialization:
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None, "chi": None},
         )
-        
+
         assert set(emulator.intermediate_names) == {"P_lin", "chi"}
         assert emulator.intermediate_names == sorted(["P_lin", "chi"])
 
@@ -89,54 +90,54 @@ class TestTFC2IEmulatorTraining:
     """Test TFC2IEmulator training functionality."""
 
     @pytest.fixture
-    def simple_grid(self):
+    def simple_grid(self) -> Grid1D:
         """Create a simple 1D grid for testing."""
         return Grid1D(min_value=0.1, max_value=10.0, n_points=20)
 
     @pytest.fixture
-    def simple_training_data(self, simple_grid):
+    def simple_training_data(self, simple_grid) -> tuple[dict, list[IntermediateSet]]:
         """Create simple training data."""
         n_samples = 10
-        
+
         # Input parameters - use cosmological parameters
         input_data = {
             "Omega_c": np.linspace(0.20, 0.30, n_samples),
             "sigma8": np.linspace(0.7, 0.9, n_samples),
         }
-        
+
         # Output data - create IntermediateSets with only the expected intermediate
         output_data = []
         for i in range(n_samples):
             # Create simple function: P(k) = Omega_c * sigma8 * k
             k_values = simple_grid.build_grid()
             p_values = input_data["Omega_c"][i] * input_data["sigma8"][i] * k_values
-            
+
             # Create tensor
             tensor = TFTensor(grid=simple_grid, values=tf.constant(p_values, dtype=tf.float32))
-            
+
             # Create intermediate - only include P_lin
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
-            
+
             # Create IntermediateSet with only P_lin
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         return input_data, output_data
 
     def test_train_basic(self, baseline_cosmology, simple_training_data):
         """Test basic training."""
         input_data, output_data = simple_training_data
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
             hidden_layers=[32, 16],
         )
-        
+
         # Train with minimal epochs for speed
         emulator.train(input_data, output_data, epochs=5, verbose=0)
-        
+
         assert emulator.training_samples == 10
         assert "P_lin" in emulator.models
         assert set(emulator.input_shape) == set(["Omega_c", "sigma8"])
@@ -146,45 +147,45 @@ class TestTFC2IEmulatorTraining:
     def test_train_with_early_stopping(self, baseline_cosmology, simple_training_data):
         """Test training with early stopping callback."""
         input_data, output_data = simple_training_data
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
             hidden_layers=[32, 16],
         )
-        
+
         emulator.train(
-            input_data, 
-            output_data, 
-            epochs=50, 
+            input_data,
+            output_data,
+            epochs=50,
             verbose=0,
             early_stopping=True,
             patience=5,
         )
-        
+
         assert emulator.training_samples == 10
         assert "P_lin" in emulator.models
 
     def test_train_validation_split(self, baseline_cosmology, simple_training_data):
         """Test training with validation split."""
         input_data, output_data = simple_training_data
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
             hidden_layers=[32, 16],
         )
-        
+
         emulator.train(
-            input_data, 
-            output_data, 
-            epochs=5, 
+            input_data,
+            output_data,
+            epochs=5,
             verbose=0,
             validation_split=0.2,
         )
-        
+
         assert emulator.training_samples == 10
 
     def test_train_wrong_output_count_raises_error(self, baseline_cosmology, simple_grid):
@@ -192,7 +193,7 @@ class TestTFC2IEmulatorTraining:
         input_data = {
             "Omega_c": np.array([0.25, 0.26, 0.27]),
         }
-        
+
         # Only 2 IntermediateSets for 3 input samples
         output_data = []
         for i in range(2):
@@ -202,13 +203,13 @@ class TestTFC2IEmulatorTraining:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
-        
+
         with pytest.raises(ValueError, match="Number of output IntermediateSets"):
             emulator.train(input_data, output_data, epochs=5, verbose=0)
 
@@ -217,7 +218,7 @@ class TestTFC2IEmulatorTraining:
         input_data = {
             "Omega_c": np.array([0.25, 0.26]),
         }
-        
+
         # Create IntermediateSets with wrong intermediate name
         output_data = []
         for i in range(2):
@@ -227,13 +228,13 @@ class TestTFC2IEmulatorTraining:
             intermediate = IntermediateBase(name="wrong_name", tensor=tensor)
             iset = IntermediateSet(intermediates={"wrong_name": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
-        
+
         with pytest.raises(ValueError, match="has intermediates"):
             emulator.train(input_data, output_data, epochs=5, verbose=0)
 
@@ -248,13 +249,13 @@ class TestTFC2IEmulatorEvaluation:
         # Setup
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
         n_samples = 15
-        
+
         # Training data
         input_data = {
             "Omega_c": np.linspace(0.20, 0.30, n_samples),
             "sigma8": np.linspace(0.7, 0.9, n_samples),
         }
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
@@ -263,7 +264,7 @@ class TestTFC2IEmulatorEvaluation:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         # Create and train emulator
         emulator = TFC2IEmulator(
             name="test_emulator",
@@ -272,21 +273,21 @@ class TestTFC2IEmulatorEvaluation:
             hidden_layers=[64, 32],
         )
         emulator.train(input_data, output_data, epochs=20, verbose=0)
-        
+
         return emulator, grid
 
     def test_evaluate_basic(self, trained_emulator):
         """Test basic evaluation."""
         emulator, grid = trained_emulator
-        
+
         # Evaluate at new points
         eval_input = {
             "Omega_c": np.array([0.22, 0.28]),
             "sigma8": np.array([0.75, 0.85]),
         }
-        
+
         result = emulator.emulate(eval_input)
-        
+
         assert isinstance(result, list)
         assert len(result) == 2
         assert all(isinstance(iset, IntermediateSet) for iset in result)
@@ -295,17 +296,17 @@ class TestTFC2IEmulatorEvaluation:
     def test_evaluate_single_sample(self, trained_emulator):
         """Test evaluation with single sample."""
         emulator, grid = trained_emulator
-        
+
         eval_input = {
             "Omega_c": np.array([0.25]),
             "sigma8": np.array([0.80]),
         }
-        
+
         result = emulator.emulate(eval_input)
-        
+
         assert len(result) == 1
         assert "P_lin" in result[0].intermediates
-        
+
         # Check tensor properties
         tensor = result[0].intermediates["P_lin"].tensor
         assert tensor.shape == (20,)  # Should match grid size
@@ -314,15 +315,15 @@ class TestTFC2IEmulatorEvaluation:
     def test_evaluate_preserves_tensor_type(self, trained_emulator):
         """Test that evaluation returns TFTensor instances."""
         emulator, grid = trained_emulator
-        
+
         eval_input = {
             "Omega_c": np.array([0.25]),
             "sigma8": np.array([0.80]),
         }
-        
+
         result = emulator.emulate(eval_input)
         tensor = result[0].intermediates["P_lin"].tensor
-        
+
         assert isinstance(tensor, TFTensor)
         assert tf.is_tensor(tensor.values)
 
@@ -333,33 +334,33 @@ class TestTFC2IEmulatorEvaluation:
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
-        
+
         eval_input = {"Omega_c": np.array([0.25])}
-        
+
         with pytest.raises(RuntimeError, match="not been trained"):
             emulator.emulate(eval_input)
 
     def test_evaluate_wrong_parameters_raises_error(self, trained_emulator):
         """Test that wrong parameters raise error."""
         emulator, grid = trained_emulator
-        
+
         # Missing sigma8
         eval_input = {"Omega_c": np.array([0.25])}
-        
+
         with pytest.raises(ValueError, match="do not match"):
             emulator.emulate(eval_input)
 
     def test_evaluate_with_batch_size(self, trained_emulator):
         """Test evaluation with custom batch size."""
         emulator, grid = trained_emulator
-        
+
         eval_input = {
             "Omega_c": np.linspace(0.21, 0.29, 100),
             "sigma8": np.linspace(0.72, 0.88, 100),
         }
-        
+
         result = emulator.emulate(eval_input, batch_size=16)
-        
+
         assert len(result) == 100
 
 
@@ -371,35 +372,35 @@ class TestTFC2IEmulatorMultipleIntermediates:
         """Test training with multiple intermediates."""
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=15)
         n_samples = 10
-        
+
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
-            
+
             # Create two intermediates
             p_lin_values = input_data["Omega_c"][i] * k_values
             chi_values = input_data["Omega_c"][i] ** 2 * k_values
-            
+
             p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
             chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
-            
+
             p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
             chi = IntermediateBase(name="chi", tensor=chi_tensor)
-            
+
             iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None, "chi": None},
             hidden_layers=[32, 16],
         )
-        
+
         emulator.train(input_data, output_data, epochs=10, verbose=0)
-        
+
         assert "P_lin" in emulator.models
         assert "chi" in emulator.models
         assert emulator.grids["P_lin"] is not None
@@ -409,37 +410,37 @@ class TestTFC2IEmulatorMultipleIntermediates:
         """Test evaluation with multiple intermediates."""
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=15)
         n_samples = 10
-        
+
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
             p_lin_values = input_data["Omega_c"][i] * k_values
             chi_values = input_data["Omega_c"][i] ** 2 * k_values
-            
+
             p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
             chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
-            
+
             p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
             chi = IntermediateBase(name="chi", tensor=chi_tensor)
-            
+
             iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None, "chi": None},
             hidden_layers=[32, 16],
         )
-        
+
         emulator.train(input_data, output_data, epochs=10, verbose=0)
-        
+
         # Evaluate
         eval_input = {"Omega_c": np.array([0.25, 0.27])}
         result = emulator.emulate(eval_input)
-        
+
         assert len(result) == 2
         assert all("P_lin" in iset.intermediates for iset in result)
         assert all("chi" in iset.intermediates for iset in result)
@@ -454,32 +455,32 @@ class TestTFC2IEmulatorProductGrid:
         grid_k = Grid1D(min_value=0.1, max_value=5.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
         grid = ProductGrid(grids={"k": grid_k, "z": grid_z})
-        
+
         n_samples = 8
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             # Create 2D function: P(k, z) = Omega_c * k * (1 + z)
             k_values = grid_k.build_grid()
             z_values = grid_z.build_grid()
-            K, Z = np.meshgrid(k_values, z_values, indexing='ij')
+            K, Z = np.meshgrid(k_values, z_values, indexing="ij")
             p_values = input_data["Omega_c"][i] * K * (1 + Z)
-            
+
             tensor = TFTensor(grid=grid, values=tf.constant(p_values, dtype=tf.float32))
             intermediate = IntermediateBase(name="P_kz", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_kz": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_kz": None},
             hidden_layers=[64, 32],
         )
-        
+
         emulator.train(input_data, output_data, epochs=10, verbose=0)
-        
+
         assert "P_kz" in emulator.models
         assert emulator.output_shape["P_kz"] == [10, 8]
 
@@ -488,35 +489,35 @@ class TestTFC2IEmulatorProductGrid:
         grid_k = Grid1D(min_value=0.1, max_value=5.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
         grid = ProductGrid(grids={"k": grid_k, "z": grid_z})
-        
+
         n_samples = 8
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid_k.build_grid()
             z_values = grid_z.build_grid()
-            K, Z = np.meshgrid(k_values, z_values, indexing='ij')
+            K, Z = np.meshgrid(k_values, z_values, indexing="ij")
             p_values = input_data["Omega_c"][i] * K * (1 + Z)
-            
+
             tensor = TFTensor(grid=grid, values=tf.constant(p_values, dtype=tf.float32))
             intermediate = IntermediateBase(name="P_kz", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_kz": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_kz": None},
             hidden_layers=[64, 32],
         )
-        
+
         emulator.train(input_data, output_data, epochs=15, verbose=0)
-        
+
         # Evaluate
         eval_input = {"Omega_c": np.array([0.25])}
         result = emulator.emulate(eval_input)
-        
+
         assert len(result) == 1
         tensor = result[0].intermediates["P_kz"].tensor
         assert tensor.shape == (10, 8)
@@ -532,9 +533,9 @@ class TestTFC2IEmulatorSaveLoad:
         # Create and train emulator
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
         n_samples = 10
-        
+
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
@@ -543,7 +544,7 @@ class TestTFC2IEmulatorSaveLoad:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
@@ -551,14 +552,14 @@ class TestTFC2IEmulatorSaveLoad:
             hidden_layers=[32, 16],
         )
         emulator.train(input_data, output_data, epochs=10, verbose=0)
-        
+
         # Save
         save_path = tmp_path / "test_emulator"
         emulator.save(save_path)
 
         # Load
         loaded_emulator = TFC2IEmulator.load(save_path)
-        
+
         # Verify
         assert loaded_emulator.name == emulator.name
         assert loaded_emulator.intermediate_names == emulator.intermediate_names
@@ -571,9 +572,9 @@ class TestTFC2IEmulatorSaveLoad:
         # Create and train emulator
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
         n_samples = 10
-        
+
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
@@ -582,7 +583,7 @@ class TestTFC2IEmulatorSaveLoad:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
@@ -590,23 +591,23 @@ class TestTFC2IEmulatorSaveLoad:
             hidden_layers=[32, 16],
         )
         emulator.train(input_data, output_data, epochs=10, verbose=0)
-        
+
         # Evaluate before saving
         eval_input = {"Omega_c": np.array([0.25])}
         result_before = emulator.emulate(eval_input)
-        
+
         # Save and load
         save_path = tmp_path / "test_emulator"
         emulator.save(save_path)
         loaded_emulator = TFC2IEmulator.load(save_path)
-        
+
         # Evaluate after loading
         result_after = loaded_emulator.emulate(eval_input)
-        
+
         # Compare results
         values_before = result_before[0].intermediates["P_lin"].tensor.to_numpy()
         values_after = result_after[0].intermediates["P_lin"].tensor.to_numpy()
-        
+
         np.testing.assert_allclose(values_before, values_after, rtol=1e-5)
 
     def test_save_untrained_raises_error(self, baseline_cosmology, tmp_path):
@@ -616,16 +617,16 @@ class TestTFC2IEmulatorSaveLoad:
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
-        
+
         save_path = tmp_path / "test_emulator"
-        
+
         with pytest.raises(RuntimeError, match="not been trained"):
             emulator.save(save_path)
 
     def test_load_nonexistent_raises_error(self, tmp_path):
         """Test that loading nonexistent emulator raises error."""
         save_path = tmp_path / "nonexistent"
-        
+
         with pytest.raises(FileNotFoundError):
             TFC2IEmulator.load(save_path)
 
@@ -638,12 +639,12 @@ class TestTFC2IEmulatorNormalization:
         """Test that normalization parameters are stored."""
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
         n_samples = 10
-        
+
         input_data = {
             "Omega_c": np.linspace(0.20, 0.30, n_samples),
             "sigma8": np.linspace(0.7, 0.9, n_samples),
         }
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
@@ -652,14 +653,14 @@ class TestTFC2IEmulatorNormalization:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
         emulator.train(input_data, output_data, epochs=5, verbose=0)
-        
+
         # Check normalization parameters exist
         assert emulator.normalizers is not None
         assert "input_mean" in emulator.normalizers
@@ -671,12 +672,12 @@ class TestTFC2IEmulatorNormalization:
         """Test that normalization parameters have correct shapes."""
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
         n_samples = 10
-        
+
         input_data = {
             "Omega_c": np.linspace(0.20, 0.30, n_samples),
             "sigma8": np.linspace(0.7, 0.9, n_samples),
         }
-        
+
         output_data = []
         for i in range(n_samples):
             k_values = grid.build_grid()
@@ -685,14 +686,14 @@ class TestTFC2IEmulatorNormalization:
             intermediate = IntermediateBase(name="P_lin", tensor=tensor)
             iset = IntermediateSet(intermediates={"P_lin": intermediate})
             output_data.append(iset)
-        
+
         emulator = TFC2IEmulator(
             name="test_emulator",
             baseline_cosmology=baseline_cosmology,
             grids={"P_lin": None},
         )
         emulator.train(input_data, output_data, epochs=5, verbose=0)
-        
+
         # Check shapes
         assert emulator.normalizers["input_mean"].shape == (2,)  # 2 parameters
         assert emulator.normalizers["input_std"].shape == (2,)

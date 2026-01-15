@@ -514,7 +514,7 @@ class IntermediateMultiSet(IntermediateSet):
     >>> from c2i2o.core.grid import Grid1D
     >>> from c2i2o.core.tensor import NumpyTensorSet
     >>> from c2i2o.core.intermediate import Intermediate
-    >>> 
+    >>>
     >>> grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
     >>> p_lin_values = np.array([
     ...     np.linspace(0, 10, 11),
@@ -523,11 +523,11 @@ class IntermediateMultiSet(IntermediateSet):
     ... ])
     >>> p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=3, values=p_lin_values)
     >>> p_lin = Intermediate(name="P_lin", tensor=p_lin_tensor)
-    >>> 
+    >>>
     >>> multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
     >>> multi_set.n_samples
     3
-    >>> 
+    >>>
     >>> # Access individual intermediate sets
     >>> iset_0 = multi_set[0]
     >>> iset_0.intermediates["P_lin"].tensor.shape
@@ -549,13 +549,13 @@ class IntermediateMultiSet(IntermediateSet):
         """
         if not self.intermediates:
             raise ValueError("Cannot get n_samples from empty IntermediateMultiSet")
-        
+
         # Get n_samples from first intermediate's tensor
         first_intermediate = next(iter(self.intermediates.values()))
         return first_intermediate.tensor.n_samples
 
-    @model_validator(mode='after')
-    def validate_all_tensor_sets(self) -> 'IntermediateMultiSet':
+    @model_validator(mode="after")
+    def validate_all_tensor_sets(self) -> "IntermediateMultiSet":
         """Validate that all intermediates contain NumpyTensorSet with same n_samples.
 
         Returns
@@ -569,9 +569,9 @@ class IntermediateMultiSet(IntermediateSet):
         """
         if not self.intermediates:
             return self
-        
+
         n_samples_ref = None
-        
+
         for name, intermediate in self.intermediates.items():
             # Check that tensor is NumpyTensorSet
             if not isinstance(intermediate.tensor, NumpyTensorSet):
@@ -579,7 +579,7 @@ class IntermediateMultiSet(IntermediateSet):
                     f"Intermediate '{name}' must contain NumpyTensorSet, "
                     f"got {type(intermediate.tensor).__name__}"
                 )
-            
+
             # Check that n_samples match
             if n_samples_ref is None:
                 n_samples_ref = intermediate.tensor.n_samples
@@ -588,7 +588,7 @@ class IntermediateMultiSet(IntermediateSet):
                     f"Intermediate '{name}' has n_samples={intermediate.tensor.n_samples}, "
                     f"expected {n_samples_ref}"
                 )
-        
+
         return self
 
     @classmethod
@@ -620,9 +620,9 @@ class IntermediateMultiSet(IntermediateSet):
         >>> from c2i2o.core.grid import Grid1D
         >>> from c2i2o.core.tensor import NumpyTensor
         >>> from c2i2o.core.intermediate import Intermediate, IntermediateSet
-        >>> 
+        >>>
         >>> grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        >>> 
+        >>>
         >>> # Create individual intermediate sets
         >>> iset_list = []
         >>> for i in range(3):
@@ -631,7 +631,7 @@ class IntermediateMultiSet(IntermediateSet):
         ...         tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10*(i+1), 11))
         ...     )
         ...     iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        >>> 
+        >>>
         >>> # Combine into multi-set
         >>> multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
         >>> multi_set.n_samples
@@ -639,42 +639,39 @@ class IntermediateMultiSet(IntermediateSet):
         """
         if not intermediate_sets:
             raise ValueError("Cannot create IntermediateMultiSet from empty list")
-        
+
         # Get reference intermediate names from first set
         ref_names = set(intermediate_sets[0].intermediates.keys())
-        
+
         # Validate all sets have same intermediate names
         for i, iset in enumerate(intermediate_sets):
             if not isinstance(iset, IntermediateSet):
-                raise ValueError(
-                    f"Element {i} must be IntermediateSet, got {type(iset).__name__}"
-                )
-            
+                raise ValueError(f"Element {i} must be IntermediateSet, got {type(iset).__name__}")
+
             iset_names = set(iset.intermediates.keys())
             if iset_names != ref_names:
                 raise ValueError(
-                    f"IntermediateSet {i} has intermediates {iset_names}, "
-                    f"expected {ref_names}"
+                    f"IntermediateSet {i} has intermediates {iset_names}, " f"expected {ref_names}"
                 )
-        
+
         # Build combined intermediates
         combined_intermediates = {}
-        
+
         for name in ref_names:
             # Collect tensors for this intermediate across all sets
             tensors = [iset.intermediates[name].tensor for iset in intermediate_sets]
-            
+
             # Create NumpyTensorSet from tensor list
             tensor_set = NumpyTensorSet.from_tensor_list(tensors)
-            
+
             # Create Intermediate with tensor set
             intermediate = IntermediateBase(
                 name=name,
                 tensor=tensor_set,
             )
-            
+
             combined_intermediates[name] = intermediate
-        
+
         return cls(intermediates=combined_intermediates)
 
     def __getitem__(self, index: int) -> IntermediateSet:
@@ -700,41 +697,39 @@ class IntermediateMultiSet(IntermediateSet):
         >>> iset_0 = multi_set[0]
         >>> iset_0.intermediates["P_lin"].tensor.shape
         (11,)
-        >>> 
+        >>>
         >>> # Access multiple samples
         >>> for i in range(multi_set.n_samples):
         ...     iset = multi_set[i]
         ...     # Process individual intermediate set
         """
         if index < 0 or index >= self.n_samples:
-            raise IndexError(
-                f"Sample index {index} out of range [0, {self.n_samples})"
-            )
-        
+            raise IndexError(f"Sample index {index} out of range [0, {self.n_samples})")
+
         # Extract sample from each intermediate
         sample_intermediates = {}
-        
+
         for name, intermediate in self.intermediates.items():
             # Get grid from tensor set
             grid = intermediate.tensor.grid
-            
+
             # Get sample values
             sample_values = intermediate.tensor.get_sample(index)
-            
+
             # Import here to avoid circular dependency
             from c2i2o.core.tensor import NumpyTensor
-            
+
             # Create NumpyTensor for this sample
             sample_tensor = NumpyTensor(grid=grid, values=sample_values)
-            
+
             # Create Intermediate for this sample
             sample_intermediate = IntermediateBase(
                 name=name,
                 tensor=sample_tensor,
             )
-            
+
             sample_intermediates[name] = sample_intermediate
-        
+
         # Create and return IntermediateSet
         return IntermediateSet(intermediates=sample_intermediates)
 
@@ -778,11 +773,8 @@ class IntermediateMultiSet(IntermediateSet):
             String representation.
         """
         intermediate_names = sorted(self.intermediates.keys())
-        return (
-            f"IntermediateMultiSet(n_samples={self.n_samples}, "
-            f"intermediates={intermediate_names})"
-        )
-        
+        return f"IntermediateMultiSet(n_samples={self.n_samples}, " f"intermediates={intermediate_names})"
+
 
 __all__ = [
     "IntermediateBase",

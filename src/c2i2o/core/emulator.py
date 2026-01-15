@@ -321,8 +321,7 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         """
         if not self.is_trained:
             raise RuntimeError(
-                f"Emulator '{self.name}' has not been trained. "
-                "Call train() before emulate() or save()."
+                f"Emulator '{self.name}' has not been trained. " "Call train() before emulate() or save()."
             )
 
     def get_input_parameters(self) -> list[str] | None:

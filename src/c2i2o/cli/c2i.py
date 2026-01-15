@@ -22,7 +22,7 @@ from c2i2o.cli.option import (
     batch_size_opt,
     validation_split_opt,
     early_stopping_opt,
-    patience_opt,    
+    patience_opt,
 )
 
 

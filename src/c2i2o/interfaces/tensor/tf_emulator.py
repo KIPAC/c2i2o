@@ -1,4 +1,5 @@
 """TensorFlow implementation of C2I emulator for c2i2o."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,11 +15,12 @@ from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
 from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
 import warnings
+
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
     message="In the future `np.object` will be defined as the corresponding NumPy scalar",
-)    
+)
 try:
     import tensorflow as tf
     from tensorflow import keras
@@ -110,7 +112,9 @@ class TFC2IEmulator(C2IEmulator):
             If TensorFlow is not installed.
         """
         if not TF_AVAILABLE:
-            raise ImportError("TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow")
+            raise ImportError(
+                "TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow"
+            )
 
         # Build sequential model
         model = keras.Sequential()
@@ -168,7 +172,9 @@ class TFC2IEmulator(C2IEmulator):
             If TensorFlow is not installed.
         """
         if not TF_AVAILABLE:
-            raise ImportError("TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow")
+            raise ImportError(
+                "TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow"
+            )
 
         # Validate input and output data
         self._validate_input_data(input_data)
@@ -213,16 +219,16 @@ class TFC2IEmulator(C2IEmulator):
             # Extract output values for this intermediate
             y_list = []
             grid = None
-            
+
             for iset in output_data:
                 intermediate = iset.intermediates[intermediate_name]
-                
+
                 # Store grid information (from first sample)
                 if grid is None:
                     grid = intermediate.tensor.grid
-                
+
                 # Get flattened tensor values
-                if hasattr(intermediate.tensor, 'flatten'):
+                if hasattr(intermediate.tensor, "flatten"):
                     values = intermediate.tensor.flatten()
                 else:
                     values = intermediate.tensor.to_numpy().flatten()
@@ -275,7 +281,7 @@ class TFC2IEmulator(C2IEmulator):
 
         # Store number of training samples
         self.training_samples = n_samples
-        
+
         # Mark as trained
         self.is_trained = True
 
@@ -343,11 +349,9 @@ class TFC2IEmulator(C2IEmulator):
                 # Get model and grid
                 model = self.models[intermediate_name]
                 grid = self.grids[intermediate_name]
-                
+
                 # Predict
-                y_normalized = model.predict(
-                    X_normalized[i : i + 1], batch_size=1, verbose=0
-                )
+                y_normalized = model.predict(X_normalized[i : i + 1], batch_size=1, verbose=0)
 
                 # Denormalize
                 y = (
@@ -403,7 +407,9 @@ class TFC2IEmulator(C2IEmulator):
             - ...
         """
         if not TF_AVAILABLE:
-            raise ImportError("TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow")
+            raise ImportError(
+                "TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow"
+            )
 
         self._check_is_trained()
 
@@ -423,7 +429,7 @@ class TFC2IEmulator(C2IEmulator):
         # Save grids
         grids_dir = filepath / "grids"
         grids_dir.mkdir(exist_ok=True)
-        
+
         for intermediate_name, grid in self.grids.items():
             if grid is not None:  # Skip None grids (shouldn't happen after training)
                 grid_dict = grid.model_dump()
@@ -461,7 +467,9 @@ class TFC2IEmulator(C2IEmulator):
             If TensorFlow is not installed.
         """
         if not TF_AVAILABLE:
-            raise ImportError("TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow")
+            raise ImportError(
+                "TensorFlow is required for TFC2IEmulator. Install with: pip install tensorflow"
+            )
 
         filepath = Path(filepath)
 
@@ -473,23 +481,23 @@ class TFC2IEmulator(C2IEmulator):
 
         with open(filepath / "config.yaml") as f:
             config_dict = yaml.safe_load(f)
-            
+
         # Load grids
         grids_dir = filepath / "grids"
         grids = {}
-        
+
         # Get list of grid files to determine intermediate names
         grid_files = list(grids_dir.glob("*.yaml"))
-        
+
         for grid_file in grid_files:
             intermediate_name = grid_file.stem
-            
+
             with open(grid_file) as f:
                 grid_dict = yaml.safe_load(f)
-            
+
             # Reconstruct grid based on grid_type
             grid_type = grid_dict.get("grid_type")
-            
+
             if grid_type == "grid_1d":
                 grid = Grid1D(**grid_dict)
             elif grid_type == "product_grid":
@@ -500,9 +508,9 @@ class TFC2IEmulator(C2IEmulator):
                 grid = ProductGrid(grids=sub_grids)
             else:
                 raise ValueError(f"Unknown grid type: {grid_type}")
-            
+
             grids[intermediate_name] = grid
-        
+
         # Add grids to config
         config_dict["grids"] = grids
 
@@ -524,7 +532,7 @@ class TFC2IEmulator(C2IEmulator):
             models[intermediate_name] = model
 
         emulator.models = models
-        
+
         # Mark as trained
         emulator.is_trained = True
 

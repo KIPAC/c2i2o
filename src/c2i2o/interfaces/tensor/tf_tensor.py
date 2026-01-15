@@ -10,11 +10,12 @@ from c2i2o.core.tensor import TensorBase
 from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
 
 import warnings
+
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
     message="In the future `np.object` will be defined as the corresponding NumPy scalar",
-)    
+)
 try:
     import tensorflow as tf
 
@@ -48,7 +49,7 @@ class TFTensor(TensorBase):
     >>> tensor = TFTensor(grid=grid, values=values)
     >>> tensor.shape
     (11,)
-    
+
     >>> # Evaluate at arbitrary points
     >>> points = {"x": np.array([0.5, 0.75])}
     >>> tensor.evaluate(points)
@@ -62,18 +63,18 @@ class TFTensor(TensorBase):
     @classmethod
     def validate_values_shape(cls, v: Any, info: ValidationInfo) -> Any:
         """Validate that values shape matches grid shape.
-        
+
         Parameters
         ----------
         v
             The values to validate.
         info
             Validation context containing grid information.
-            
+
         Returns
         -------
             Validated TensorFlow tensor.
-            
+
         Raises
         ------
         TypeError
@@ -84,16 +85,14 @@ class TFTensor(TensorBase):
         grid = info.data.get("grid")
         if grid is None:
             return v
-        
+
         # Convert to TensorFlow tensor if needed
         if not tf.is_tensor(v):
             if isinstance(v, np.ndarray):
                 v = tf.convert_to_tensor(v, dtype=tf.float32)
             else:
-                raise TypeError(
-                    f"Values must be TensorFlow tensor or NumPy array, got {type(v)}"
-                )
-        
+                raise TypeError(f"Values must be TensorFlow tensor or NumPy array, got {type(v)}")
+
         # Determine expected shape based on grid type
         if isinstance(grid, Grid1D):
             expected_shape = (grid.n_points,)
@@ -101,17 +100,15 @@ class TFTensor(TensorBase):
             expected_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
         else:
             # Fallback for other grid types
-            expected_shape = getattr(grid, 'shape', None)
+            expected_shape = getattr(grid, "shape", None)
             if expected_shape is None:
                 return v
-        
+
         # Check shape compatibility
         values_shape = tuple(v.shape.as_list())
         if values_shape != expected_shape:
-            raise ValueError(
-                f"Values shape {values_shape} does not match grid shape {expected_shape}"
-            )
-        
+            raise ValueError(f"Values shape {values_shape} does not match grid shape {expected_shape}")
+
         return v
 
     def get_values(self) -> tf.Tensor:
@@ -143,27 +140,21 @@ class TFTensor(TensorBase):
             if isinstance(values, np.ndarray):
                 values = tf.convert_to_tensor(values, dtype=tf.float32)
             else:
-                raise TypeError(
-                    f"Values must be TensorFlow tensor or NumPy array, got {type(values)}"
-                )
-        
+                raise TypeError(f"Values must be TensorFlow tensor or NumPy array, got {type(values)}")
+
         # Determine expected shape
         if isinstance(self.grid, Grid1D):
             expected_shape = (self.grid.n_points,)
         elif isinstance(self.grid, ProductGrid):
-            expected_shape = tuple(
-                self.grid.grids[name].n_points for name in self.grid.dimension_names
-            )
+            expected_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
         else:
-            expected_shape = getattr(self.grid, 'shape', None)
-        
+            expected_shape = getattr(self.grid, "shape", None)
+
         # Validate shape
         values_shape = tuple(values.shape.as_list())
         if expected_shape is not None and values_shape != expected_shape:
-            raise ValueError(
-                f"Values shape {values_shape} does not match grid shape {expected_shape}"
-            )
-        
+            raise ValueError(f"Values shape {values_shape} does not match grid shape {expected_shape}")
+
         self.values = values
 
     def evaluate(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
@@ -196,9 +187,7 @@ class TFTensor(TensorBase):
         elif isinstance(self.grid, ProductGrid):
             return self._evaluate_product(points)
         else:
-            raise NotImplementedError(
-                f"Evaluation not implemented for grid type {type(self.grid).__name__}"
-            )
+            raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
 
     def _evaluate_1d(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
         """Evaluate Grid1D tensor using linear interpolation.
@@ -211,7 +200,7 @@ class TFTensor(TensorBase):
         Returns
         -------
             Interpolated values.
-            
+
         Raises
         ------
         ValueError
@@ -245,7 +234,7 @@ class TFTensor(TensorBase):
         Returns
         -------
             Interpolated values.
-            
+
         Raises
         ------
         KeyError
@@ -327,8 +316,7 @@ class TFTensor(TensorBase):
             String representation.
         """
         return (
-            f"TFTensor(shape={self.shape}, dtype={self.dtype.name}, "
-            f"grid_type={type(self.grid).__name__})"
+            f"TFTensor(shape={self.shape}, dtype={self.dtype.name}, " f"grid_type={type(self.grid).__name__})"
         )
 
     class Config:

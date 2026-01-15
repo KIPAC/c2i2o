@@ -29,7 +29,6 @@ CCLCosmologyUnion = Annotated[
 ]
 
 
-
 class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
     """Abstract base class for cosmology-to-intermediate emulators.
 
@@ -68,12 +67,12 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
     ...         # Validate input/output
     ...         self._validate_input_data(input_data)
     ...         self._validate_output_data(output_data)
-    ...         
+    ...
     ...         # Store grids from output_data
     ...         for intermediate_name in self.intermediate_names:
     ...             grid = output_data[0].intermediates[intermediate_name].tensor.grid
     ...             self.grids[intermediate_name] = grid
-    ...         
+    ...
     ...         # Training logic...
     ...         self.is_trained = True
     """
@@ -84,8 +83,7 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         description="Baseline CCL cosmology configuration",
     )
     grids: dict[str, GridBase | None] = Field(
-        default_factory=dict,
-        description="Grids for each intermediate quantity (None before training)"
+        default_factory=dict, description="Grids for each intermediate quantity (None before training)"
     )
 
     @property
@@ -130,7 +128,7 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
             return tuple(grid.grids[name].n_points for name in grid.dimension_names)
         else:
             # Fallback for other grid types
-            return getattr(grid, 'shape', ())
+            return getattr(grid, "shape", ())
 
     def _validate_input_data(self, input_data: dict[str, np.ndarray]) -> None:
         """Validate input data format.
@@ -147,11 +145,11 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         """
         if not isinstance(input_data, dict):
             raise ValueError(f"Input data must be a dictionary, got {type(input_data)}")
-        
+
         # Store input shape on first validation (during training)
         if self.input_shape is None:
             self.input_shape = sorted(input_data.keys())
-        
+
         for name, values in input_data.items():
             if not isinstance(values, np.ndarray):
                 raise ValueError(f"Parameter '{name}' must be a numpy array, got {type(values)}")
@@ -173,23 +171,22 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         """
         if not isinstance(output_data, list):
             raise ValueError(f"Output data must be a list, got {type(output_data)}")
-        
+
         if len(output_data) == 0:
             raise ValueError("Output data list is empty")
-        
+
         for i, iset in enumerate(output_data):
             if not isinstance(iset, IntermediateSet):
                 raise ValueError(f"output_data[{i}] must be IntermediateSet, got {type(iset)}")
-            
+
             # Check that required intermediates are present
             iset_names = set(iset.intermediates.keys())
             expected_names = set(self.intermediate_names)
             if iset_names != expected_names:
                 raise ValueError(
-                    f"IntermediateSet[{i}] has intermediates {iset_names}, "
-                    f"expected {expected_names}"
+                    f"IntermediateSet[{i}] has intermediates {iset_names}, " f"expected {expected_names}"
                 )
-        
+
         # Store output shape on first validation (during training)
         if self.output_shape is None:
             self.output_shape = {

@@ -20,7 +20,6 @@ from c2i2o.core.grid import Grid1D, ProductGrid
 from c2i2o.core.tensor import NumpyTensor, NumpyTensorSet
 
 
-
 class TestIntermediateBase:
     """Tests for IntermediateBase class."""
 
@@ -497,73 +496,67 @@ class TestIntermediateSetIOIntegration:
 class TestIntermediateMultiSetInitialization:
     """Test IntermediateMultiSet initialization and validation."""
 
-    def test_init_basic(self):
+    def test_init_basic(self) -> None:
         """Test basic initialization with tensor sets."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create NumpyTensorSet
-        p_lin_values = np.array([
-            np.linspace(0, 10, 11),
-            np.linspace(0, 20, 11),
-            np.linspace(0, 30, 11),
-        ])
+        p_lin_values = np.array(
+            [
+                np.linspace(0, 10, 11),
+                np.linspace(0, 20, 11),
+                np.linspace(0, 30, 11),
+            ]
+        )
         p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=3, values=p_lin_values)
         p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         assert multi_set.n_samples == 3
         assert "P_lin" in multi_set.intermediates
         assert len(multi_set) == 3
 
-    def test_init_multiple_intermediates(self):
+    def test_init_multiple_intermediates(self) -> None:
         """Test initialization with multiple intermediates."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         p_lin_values = np.random.randn(5, 11)
         chi_values = np.random.randn(5, 11)
-        
+
         p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=5, values=p_lin_values)
         chi_tensor = NumpyTensorSet(grid=grid, n_samples=5, values=chi_values)
-        
+
         p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
         chi = IntermediateBase(name="chi", tensor=chi_tensor)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin, "chi": chi})
-        
+
         assert multi_set.n_samples == 5
         assert set(multi_set.intermediates.keys()) == {"P_lin", "chi"}
 
-    def test_init_non_tensor_set_raises_error(self):
+    def test_init_non_tensor_set_raises_error(self) -> None:
         """Test that non-NumpyTensorSet raises error."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create regular NumpyTensor instead of NumpyTensorSet
         tensor = NumpyTensor(grid=grid, values=np.linspace(0, 10, 11))
         intermediate = IntermediateBase(name="P_lin", tensor=tensor)
-        
+
         with pytest.raises(ValueError, match="must contain NumpyTensorSet"):
             IntermediateMultiSet(intermediates={"P_lin": intermediate})
 
-    def test_init_mismatched_n_samples_raises_error(self):
+    def test_init_mismatched_n_samples_raises_error(self) -> None:
         """Test that mismatched n_samples raises error."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Different n_samples
-        p_lin_tensor = NumpyTensorSet(
-            grid=grid, 
-            n_samples=3, 
-            values=np.random.randn(3, 11)
-        )
-        chi_tensor = NumpyTensorSet(
-            grid=grid,
-            n_samples=5,
-            values=np.random.randn(5, 11)
-        )
-        
+        p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
+        chi_tensor = NumpyTensorSet(grid=grid, n_samples=5, values=np.random.randn(5, 11))
+
         p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
         chi = IntermediateBase(name="chi", tensor=chi_tensor)
-        
+
         with pytest.raises(ValueError, match="n_samples=5, expected 3"):
             IntermediateMultiSet(intermediates={"P_lin": p_lin, "chi": chi})
 
@@ -571,111 +564,92 @@ class TestIntermediateMultiSetInitialization:
 class TestIntermediateMultiSetFromList:
     """Test from_intermediate_set_list classmethod."""
 
-    def test_from_list_basic(self):
+    def test_from_list_basic(self) -> None:
         """Test creating from list of IntermediateSet."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create individual sets
         iset_list = []
         for i in range(3):
             p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10*(i+1), 11))
+                name="P_lin", tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10 * (i + 1), 11))
             )
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         # Create multi-set
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         assert multi_set.n_samples == 3
         assert "P_lin" in multi_set.intermediates
         assert isinstance(multi_set.intermediates["P_lin"].tensor, NumpyTensorSet)
 
-    def test_from_list_multiple_intermediates(self):
+    def test_from_list_multiple_intermediates(self) -> None:
         """Test creating from list with multiple intermediates."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(5):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(11))
-            )
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=2 * i * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(11)))
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=2 * i * np.ones(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         assert multi_set.n_samples == 5
         assert set(multi_set.intermediates.keys()) == {"P_lin", "chi"}
 
-    def test_from_list_single_set(self):
+    def test_from_list_single_set(self) -> None:
         """Test creating from single IntermediateSet."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
-        p_lin = IntermediateBase(
-            name="P_lin",
-            tensor=NumpyTensor(grid=grid, values=np.zeros(11))
-        )
+
+        p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.zeros(11)))
         iset = IntermediateSet(intermediates={"P_lin": p_lin})
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list([iset])
-        
+
         assert multi_set.n_samples == 1
 
-    def test_from_list_empty_raises_error(self):
+    def test_from_list_empty_raises_error(self) -> None:
         """Test that empty list raises error."""
         with pytest.raises(ValueError, match="empty list"):
             IntermediateMultiSet.from_intermediate_set_list([])
 
-    def test_from_list_different_intermediates_raises_error(self):
+    def test_from_list_different_intermediates_raises_error(self) -> None:
         """Test that different intermediate names raise error."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # First set has P_lin
-        p_lin = IntermediateBase(
-            name="P_lin",
-            tensor=NumpyTensor(grid=grid, values=np.zeros(11))
-        )
+        p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.zeros(11)))
         iset1 = IntermediateSet(intermediates={"P_lin": p_lin})
-        
+
         # Second set has chi
-        chi = IntermediateBase(
-            name="chi",
-            tensor=NumpyTensor(grid=grid, values=np.zeros(11))
-        )
+        chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=np.zeros(11)))
         iset2 = IntermediateSet(intermediates={"chi": chi})
-        
+
         with pytest.raises(ValueError):
             IntermediateMultiSet.from_intermediate_set_list([iset1, iset2])
 
-    def test_from_list_non_intermediate_set_raises_error(self):
+    def test_from_list_non_intermediate_set_raises_error(self) -> None:
         """Test that non-IntermediateSet element raises error."""
         with pytest.raises(AttributeError):
             IntermediateMultiSet.from_intermediate_set_list([{"not": "a set"}])
 
-    def test_from_list_preserves_values(self):
+    def test_from_list_preserves_values(self) -> None:
         """Test that values are preserved correctly."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create sets with known values
         expected_values = []
         iset_list = []
         for i in range(3):
-            values = np.linspace(i, i+10, 11)
+            values = np.linspace(i, i + 10, 11)
             expected_values.append(values)
-            
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=values)
-            )
+
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=values))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Verify values match
         tensor_set = multi_set.intermediates["P_lin"].tensor
         for i, expected in enumerate(expected_values):
@@ -685,90 +659,77 @@ class TestIntermediateMultiSetFromList:
 class TestIntermediateMultiSetGetItem:
     """Test __getitem__ functionality."""
 
-    def test_getitem_basic(self):
+    def test_getitem_basic(self) -> None:
         """Test getting individual IntermediateSet."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(3):
             p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10*(i+1), 11))
+                name="P_lin", tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10 * (i + 1), 11))
             )
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Get first sample
         iset_0 = multi_set[0]
-        
+
         assert isinstance(iset_0, IntermediateSet)
         assert "P_lin" in iset_0.intermediates
         assert isinstance(iset_0.intermediates["P_lin"].tensor, NumpyTensor)
         assert iset_0.intermediates["P_lin"].tensor.shape == (11,)
 
-    def test_getitem_all_samples(self):
+    def test_getitem_all_samples(self) -> None:
         """Test getting all samples."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         expected_values = []
         for i in range(3):
             values = i * np.ones(11)
             expected_values.append(values)
-            
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=values)
-            )
+
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=values))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Verify each sample
         for i in range(3):
             iset = multi_set[i]
-            np.testing.assert_array_equal(
-                iset.intermediates["P_lin"].tensor.values,
-                expected_values[i]
-            )
+            np.testing.assert_array_equal(iset.intermediates["P_lin"].tensor.values, expected_values[i])
 
-    def test_getitem_multiple_intermediates(self):
+    def test_getitem_multiple_intermediates(self) -> None:
         """Test getitem with multiple intermediates."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(2):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(11))
-            )
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=2 * i * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(11)))
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=2 * i * np.ones(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         iset_1 = multi_set[1]
-        
+
         assert set(iset_1.intermediates.keys()) == {"P_lin", "chi"}
         np.testing.assert_array_equal(iset_1.intermediates["P_lin"].tensor.values, np.ones(11))
         np.testing.assert_array_equal(iset_1.intermediates["chi"].tensor.values, 2 * np.ones(11))
 
-    def test_getitem_out_of_range_raises_error(self):
+    def test_getitem_out_of_range_raises_error(self) -> None:
         """Test that out of range index raises error."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         with pytest.raises(IndexError, match="out of range"):
             _ = multi_set[3]
-        
+
         with pytest.raises(IndexError, match="out of range"):
             _ = multi_set[-1]
 
@@ -776,145 +737,132 @@ class TestIntermediateMultiSetGetItem:
 class TestIntermediateMultiSetIteration:
     """Test iteration functionality."""
 
-    def test_iter_basic(self):
+    def test_iter_basic(self) -> None:
         """Test iterating over multi-set."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(3):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Iterate and collect
         collected = list(multi_set)
-        
+
         assert len(collected) == 3
         assert all(isinstance(iset, IntermediateSet) for iset in collected)
 
-    def test_iter_values(self):
+    def test_iter_values(self) -> None:
         """Test that iteration yields correct values."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         expected_values = [0, 1, 2]
         iset_list = []
         for val in expected_values:
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=val * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=val * np.ones(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Verify values during iteration
         for i, iset in enumerate(multi_set):
             np.testing.assert_array_equal(
-                iset.intermediates["P_lin"].tensor.values,
-                expected_values[i] * np.ones(11)
+                iset.intermediates["P_lin"].tensor.values, expected_values[i] * np.ones(11)
             )
 
-    def test_iter_in_loop(self):
+    def test_iter_in_loop(self) -> None:
         """Test using multi-set in a for loop."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(5):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.random.randn(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         count = 0
         for iset in multi_set:
             assert isinstance(iset, IntermediateSet)
             assert "P_lin" in iset.intermediates
             count += 1
-        
+
         assert count == 5
 
 
 class TestIntermediateMultiSetLen:
     """Test __len__ functionality."""
 
-    def test_len_basic(self):
+    def test_len_basic(self) -> None:
         """Test len returns n_samples."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         tensor_set = NumpyTensorSet(grid=grid, n_samples=7, values=np.random.randn(7, 11))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         assert len(multi_set) == 7
 
-    def test_len_single_sample(self):
+    def test_len_single_sample(self) -> None:
         """Test len with single sample."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         tensor_set = NumpyTensorSet(grid=grid, n_samples=1, values=np.random.randn(1, 11))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         assert len(multi_set) == 1
 
-    def test_len_matches_iteration(self):
+    def test_len_matches_iteration(self) -> None:
         """Test that len matches iteration count."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(10):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.random.randn(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         assert len(multi_set) == sum(1 for _ in multi_set)
 
 
 class TestIntermediateMultiSetRepr:
     """Test string representation."""
 
-    def test_repr_basic(self):
+    def test_repr_basic(self) -> None:
         """Test repr output."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         repr_str = repr(multi_set)
-        
+
         assert "IntermediateMultiSet" in repr_str
         assert "n_samples=3" in repr_str
         assert "P_lin" in repr_str
 
-    def test_repr_multiple_intermediates(self):
+    def test_repr_multiple_intermediates(self) -> None:
         """Test repr with multiple intermediates."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=5, values=np.random.randn(5, 11))
         chi_tensor = NumpyTensorSet(grid=grid, n_samples=5, values=np.random.randn(5, 11))
-        
+
         p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
         chi = IntermediateBase(name="chi", tensor=chi_tensor)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin, "chi": chi})
-        
+
         repr_str = repr(multi_set)
-        
+
         assert "n_samples=5" in repr_str
         # Should show sorted intermediate names
         assert "P_lin" in repr_str
@@ -924,341 +872,291 @@ class TestIntermediateMultiSetRepr:
 class TestIntermediateMultiSetProductGrid:
     """Test with product grids."""
 
-    def test_product_grid_basic(self):
+    def test_product_grid_basic(self) -> None:
         """Test multi-set with product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
         grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
-        
-        tensor_set = NumpyTensorSet(
-            grid=grid,
-            n_samples=3,
-            values=np.random.randn(3, 5, 7)
-        )
+
+        tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 5, 7))
         p_kz = IntermediateBase(name="P_kz", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_kz": p_kz})
-        
+
         assert multi_set.n_samples == 3
         assert len(multi_set) == 3
 
-    def test_product_grid_getitem(self):
+    def test_product_grid_getitem(self) -> None:
         """Test getitem with product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
         grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
-        
+
         iset_list = []
         for i in range(2):
-            p_kz = IntermediateBase(
-                name="P_kz",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones((5, 7)))
-            )
+            p_kz = IntermediateBase(name="P_kz", tensor=NumpyTensor(grid=grid, values=i * np.ones((5, 7))))
             iset_list.append(IntermediateSet(intermediates={"P_kz": p_kz}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         iset_0 = multi_set[0]
-        
+
         assert iset_0.intermediates["P_kz"].tensor.shape == (5, 7)
-        np.testing.assert_array_equal(
-            iset_0.intermediates["P_kz"].tensor.values,
-            np.zeros((5, 7))
-        )
+        np.testing.assert_array_equal(iset_0.intermediates["P_kz"].tensor.values, np.zeros((5, 7)))
 
 
 class TestIntermediateMultiSetEdgeCases:
     """Test edge cases and special scenarios."""
 
-    def test_round_trip_conversion(self):
+    def test_round_trip_conversion(self) -> None:
         """Test converting list to multi-set and back."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create original list
         original_list = []
         for i in range(5):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(11)))
             original_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         # Convert to multi-set
         multi_set = IntermediateMultiSet.from_intermediate_set_list(original_list)
-        
+
         # Convert back to list
         reconstructed_list = [multi_set[i] for i in range(len(multi_set))]
-        
+
         # Verify
         assert len(reconstructed_list) == len(original_list)
         for orig, recon in zip(original_list, reconstructed_list):
             np.testing.assert_array_equal(
-                orig.intermediates["P_lin"].tensor.values,
-                recon.intermediates["P_lin"].tensor.values
+                orig.intermediates["P_lin"].tensor.values, recon.intermediates["P_lin"].tensor.values
             )
 
-    def test_large_number_of_samples(self):
+    def test_large_number_of_samples(self) -> None:
         """Test with large number of samples."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=50)
         n_samples = 1000
-        
-        tensor_set = NumpyTensorSet(
-            grid=grid,
-            n_samples=n_samples,
-            values=np.random.randn(n_samples, 50)
-        )
+
+        tensor_set = NumpyTensorSet(grid=grid, n_samples=n_samples, values=np.random.randn(n_samples, 50))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         assert len(multi_set) == n_samples
-        
+
         # Test random access
         iset_500 = multi_set[500]
         assert isinstance(iset_500, IntermediateSet)
 
-    def test_indexing_consistency(self):
+    def test_indexing_consistency(self) -> None:
         """Test that indexing and iteration give same results."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(10):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Get via indexing
         indexed = [multi_set[i] for i in range(len(multi_set))]
-        
+
         # Get via iteration
         iterated = list(multi_set)
-        
+
         # Compare
         assert len(indexed) == len(iterated)
         for idx_iset, iter_iset in zip(indexed, iterated):
             np.testing.assert_array_equal(
-                idx_iset.intermediates["P_lin"].tensor.values,
-                iter_iset.intermediates["P_lin"].tensor.values
+                idx_iset.intermediates["P_lin"].tensor.values, iter_iset.intermediates["P_lin"].tensor.values
             )
 
 
 class TestIntermediateMultiSetDocstringExamples:
     """Test examples from docstrings."""
 
-    def test_docstring_example_basic(self):
+    def test_docstring_example_basic(self) -> None:
         """Test basic example from class docstring."""
         from c2i2o.core.grid import Grid1D
         from c2i2o.core.tensor import NumpyTensorSet
         from c2i2o.core.intermediate import IntermediateBase
-        
+
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        p_lin_values = np.array([
-            np.linspace(0, 10, 11),
-            np.linspace(0, 20, 11),
-            np.linspace(0, 30, 11),
-        ])
+        p_lin_values = np.array(
+            [
+                np.linspace(0, 10, 11),
+                np.linspace(0, 20, 11),
+                np.linspace(0, 30, 11),
+            ]
+        )
         p_lin_tensor = NumpyTensorSet(grid=grid, n_samples=3, values=p_lin_values)
         p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
-        
+
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
-        
+
         assert multi_set.n_samples == 3
-        
+
         # Access individual intermediate sets
         iset_0 = multi_set[0]
         assert iset_0.intermediates["P_lin"].tensor.shape == (11,)
 
-    def test_docstring_example_from_list(self):
+    def test_docstring_example_from_list(self) -> None:
         """Test from_intermediate_set_list example from docstring."""
         from c2i2o.core.grid import Grid1D
         from c2i2o.core.tensor import NumpyTensor
         from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-        
+
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         # Create individual intermediate sets
         iset_list = []
         for i in range(3):
             p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10*(i+1), 11))
+                name="P_lin", tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10 * (i + 1), 11))
             )
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         # Combine into multi-set
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         assert multi_set.n_samples == 3
 
-    def test_docstring_example_getitem(self):
+    def test_docstring_example_getitem(self) -> None:
         """Test __getitem__ example from docstring."""
         from c2i2o.core.grid import Grid1D
         from c2i2o.core.tensor import NumpyTensor
         from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-        
+
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(3):
             p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10*(i+1), 11))
+                name="P_lin", tensor=NumpyTensor(grid=grid, values=np.linspace(0, 10 * (i + 1), 11))
             )
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         iset_0 = multi_set[0]
         assert iset_0.intermediates["P_lin"].tensor.shape == (11,)
-        
+
         # Access multiple samples
         for i in range(multi_set.n_samples):
             iset = multi_set[i]
             assert isinstance(iset, IntermediateSet)
 
-    def test_docstring_example_len(self):
+    def test_docstring_example_len(self) -> None:
         """Test __len__ example from docstring."""
         from c2i2o.core.grid import Grid1D
         from c2i2o.core.tensor import NumpyTensorSet
         from c2i2o.core.intermediate import IntermediateBase
-        
+
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        tensor_set = NumpyTensorSet(
-            grid=grid,
-            n_samples=3,
-            values=np.random.randn(3, 11)
-        )
+        tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
         p_lin = IntermediateBase(name="P_lin", tensor=tensor_set)
         multi_set = IntermediateMultiSet(intermediates={"P_lin": p_lin})
         assert len(multi_set) == 3
 
-    def test_docstring_example_iter(self):
+    def test_docstring_example_iter(self) -> None:
         """Test __iter__ example from docstring."""
         from c2i2o.core.grid import Grid1D
         from c2i2o.core.tensor import NumpyTensor
         from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-        
+
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         iset_list = []
         for i in range(3):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(11))
-            )
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(11))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.random.randn(11)))
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=np.random.randn(11)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         count = 0
         for iset in multi_set:
             assert set(iset.intermediates.keys()) == {"P_lin", "chi"}
             count += 1
-        
+
         assert count == 3
 
 
 class TestIntermediateMultiSetIntegration:
     """Integration tests with emulator workflow."""
 
-    def test_training_data_workflow(self):
+    def test_training_data_workflow(self) -> None:
         """Test typical training data storage workflow."""
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=50)
-        
+
         # Simulate training data generation
         n_training_samples = 100
         training_sets = []
-        
+
         for i in range(n_training_samples):
             # Simulate computed intermediates
             p_lin_values = np.random.randn(50)
             chi_values = np.random.randn(50)
-            
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=p_lin_values)
-            )
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=chi_values)
-            )
-            
-            training_sets.append(
-                IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
-            )
-        
+
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=p_lin_values))
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=chi_values))
+
+            training_sets.append(IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi}))
+
         # Store as multi-set for efficient handling
         multi_set = IntermediateMultiSet.from_intermediate_set_list(training_sets)
-        
+
         assert len(multi_set) == n_training_samples
-        
+
         # Extract for training
         for i, iset in enumerate(multi_set):
             assert isinstance(iset, IntermediateSet)
             assert "P_lin" in iset.intermediates
             assert "chi" in iset.intermediates
 
-    def test_batch_prediction_workflow(self):
+    def test_batch_prediction_workflow(self) -> None:
         """Test batch prediction storage workflow."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=20)
-        
+
         # Simulate batch predictions
         batch_size = 32
         predictions = []
-        
+
         for i in range(batch_size):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=i * np.ones(20))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=i * np.ones(20)))
             predictions.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         # Store as multi-set
         multi_set = IntermediateMultiSet.from_intermediate_set_list(predictions)
-        
+
         # Process individual predictions
         for i, pred in enumerate(multi_set):
             expected_values = i * np.ones(20)
-            np.testing.assert_array_equal(
-                pred.intermediates["P_lin"].tensor.values,
-                expected_values
-            )
+            np.testing.assert_array_equal(pred.intermediates["P_lin"].tensor.values, expected_values)
 
-    def test_mixed_grid_dimensions(self):
+    def test_mixed_grid_dimensions(self) -> None:
         """Test multi-set with different grid types for different intermediates."""
         # 1D grid for chi
         grid_1d = Grid1D(min_value=0.0, max_value=3.0, n_points=30)
-        
+
         # 2D grid for P_kz
         grid_k = Grid1D(min_value=0.01, max_value=10.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
         grid_2d = ProductGrid(grids={"k": grid_k, "z": grid_z})
-        
+
         # Create intermediate sets
         iset_list = []
         for i in range(5):
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid_1d, values=np.random.randn(30))
-            )
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid_1d, values=np.random.randn(30)))
             p_kz = IntermediateBase(
-                name="P_kz",
-                tensor=NumpyTensor(grid=grid_2d, values=np.random.randn(10, 8))
+                name="P_kz", tensor=NumpyTensor(grid=grid_2d, values=np.random.randn(10, 8))
             )
             iset_list.append(IntermediateSet(intermediates={"chi": chi, "P_kz": p_kz}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         assert multi_set.n_samples == 5
-        
+
         # Check shapes
         iset_0 = multi_set[0]
         assert iset_0.intermediates["chi"].tensor.shape == (30,)
@@ -1268,43 +1166,34 @@ class TestIntermediateMultiSetIntegration:
 class TestIntermediateMultiSetMemoryEfficiency:
     """Test memory efficiency compared to list storage."""
 
-    def test_storage_is_contiguous(self):
+    def test_storage_is_contiguous(self) -> None:
         """Test that multi-set uses contiguous storage."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=100)
-        
+
         iset_list = []
         for i in range(50):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(100))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.random.randn(100)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Verify that underlying storage is contiguous
         tensor_set = multi_set.intermediates["P_lin"].tensor
-        assert tensor_set.values.flags['C_CONTIGUOUS']
+        assert tensor_set.values.flags["C_CONTIGUOUS"]
 
-    def test_single_allocation(self):
+    def test_single_allocation(self) -> None:
         """Test that multi-set uses single allocation per intermediate."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=50)
         n_samples = 100
-        
+
         iset_list = []
         for i in range(n_samples):
-            p_lin = IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(50))
-            )
-            chi = IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=np.random.randn(50))
-            )
+            p_lin = IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.random.randn(50)))
+            chi = IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=np.random.randn(50)))
             iset_list.append(IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi}))
-        
+
         multi_set = IntermediateMultiSet.from_intermediate_set_list(iset_list)
-        
+
         # Should have single array per intermediate
         assert multi_set.intermediates["P_lin"].tensor.values.shape == (n_samples, 50)
         assert multi_set.intermediates["chi"].tensor.values.shape == (n_samples, 50)
@@ -1313,58 +1202,54 @@ class TestIntermediateMultiSetMemoryEfficiency:
 class TestIntermediateMultiSetErrorMessages:
     """Test that error messages are informative."""
 
-    def test_non_tensor_set_error_message(self):
+    def test_non_tensor_set_error_message(self) -> None:
         """Test error message for non-NumpyTensorSet."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         tensor = NumpyTensor(grid=grid, values=np.zeros(11))
         intermediate = IntermediateBase(name="test", tensor=tensor)
-        
+
         with pytest.raises(ValueError) as excinfo:
             IntermediateMultiSet(intermediates={"test": intermediate})
-        
+
         assert "must contain NumpyTensorSet" in str(excinfo.value)
         assert "NumpyTensor" in str(excinfo.value)
 
-    def test_mismatched_samples_error_message(self):
+    def test_mismatched_samples_error_message(self) -> None:
         """Test error message for mismatched n_samples."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
+
         p_lin = IntermediateBase(
-            name="P_lin",
-            tensor=NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
+            name="P_lin", tensor=NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 11))
         )
         chi = IntermediateBase(
-            name="chi",
-            tensor=NumpyTensorSet(grid=grid, n_samples=5, values=np.random.randn(5, 11))
+            name="chi", tensor=NumpyTensorSet(grid=grid, n_samples=5, values=np.random.randn(5, 11))
         )
-        
+
         with pytest.raises(ValueError) as excinfo:
             IntermediateMultiSet(intermediates={"P_lin": p_lin, "chi": chi})
-        
+
         assert "n_samples=5" in str(excinfo.value)
         assert "expected 3" in str(excinfo.value)
         assert "chi" in str(excinfo.value)
 
-    def test_different_intermediates_error_message(self):
+    def test_different_intermediates_error_message(self) -> None:
         """Test error message for different intermediate names."""
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        
-        iset1 = IntermediateSet(intermediates={
-            "P_lin": IntermediateBase(
-                name="P_lin",
-                tensor=NumpyTensor(grid=grid, values=np.zeros(11))
-            )
-        })
-        iset2 = IntermediateSet(intermediates={
-            "chi": IntermediateBase(
-                name="chi",
-                tensor=NumpyTensor(grid=grid, values=np.zeros(11))
-            )
-        })
-        
+
+        iset1 = IntermediateSet(
+            intermediates={
+                "P_lin": IntermediateBase(name="P_lin", tensor=NumpyTensor(grid=grid, values=np.zeros(11)))
+            }
+        )
+        iset2 = IntermediateSet(
+            intermediates={
+                "chi": IntermediateBase(name="chi", tensor=NumpyTensor(grid=grid, values=np.zeros(11)))
+            }
+        )
+
         with pytest.raises(ValueError) as excinfo:
             IntermediateMultiSet.from_intermediate_set_list([iset1, iset2])
-        
+
         assert "has intermediates" in str(excinfo.value)
         assert "expected" in str(excinfo.value)

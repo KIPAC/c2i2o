@@ -12,7 +12,7 @@ import tables_io
 import yaml
 from pydantic import BaseModel, Field
 
-from c2i2o.core.intermediate import IntermediateSet
+from c2i2o.core.intermediate import IntermediateSet, IntermediateMultiSet
 from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
 
 
@@ -36,14 +36,14 @@ class C2IEmulatorImpl(BaseModel):
     >>> emulator_impl = C2IEmulatorImpl.load_emulator(
     ...     "models/my_emulator/final"
     ... )
-    >>> 
+    >>>
     >>> # Emulate at new parameter values
     >>> test_params = {
     ...     "Omega_c": np.array([0.25, 0.26]),
     ...     "sigma8": np.array([0.80, 0.82]),
     ... }
     >>> results = emulator_impl.emulate(test_params)
-    >>> 
+    >>>
     >>> # Or load from file and emulate
     >>> emulator_impl.emulate_from_file(
     ...     "data/test_params.hdf5",
@@ -52,13 +52,11 @@ class C2IEmulatorImpl(BaseModel):
     """
 
     emulator: TFC2IEmulator = Field(..., description="Trained TFC2IEmulator instance")
-    output_dir: str | Path | None = Field(
-        default=None,
-        description="Output directory for results"
-    )
+    output_dir: str | Path | None = Field(default=None, description="Output directory for results")
 
     class Config:
         """Pydantic configuration."""
+
         arbitrary_types_allowed = True
         extra = "forbid"
 
@@ -181,7 +179,7 @@ class C2IEmulatorImpl(BaseModel):
         ...     "data/test_params.hdf5",
         ...     "results/predictions.hdf5"
         ... )
-        >>> 
+        >>>
         >>> # Emulate without saving
         >>> results = emulator_impl.emulate_from_file("data/test_params.hdf5")
         """
@@ -195,11 +193,13 @@ class C2IEmulatorImpl(BaseModel):
         # Emulate
         results = self.emulate(input_data, **kwargs)
 
+        writeable_results = IntermediateMultiSet.from_intermediate_set_list(results)
+
         # Save results if output path provided
         if output_filepath is not None:
             output_filepath = Path(output_filepath)
             output_filepath.parent.mkdir(parents=True, exist_ok=True)
-            tables_io.write(results, output_filepath)
+            writeable_results.save_values(output_filepath)
 
         return results
 
@@ -224,7 +224,8 @@ class C2IEmulatorImpl(BaseModel):
         """
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        tables_io.write(predictions, filepath)
+        writeable_predictions = IntermediateMultiSet.from_intermediate_set_list(predictions)
+        writeable_predictions.save_values(filepath)
 
     def to_yaml(self, filepath: str | Path) -> None:
         """Save the emulator configuration to YAML file.

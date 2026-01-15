@@ -56,6 +56,7 @@ class C2ITrainEmulator(BaseModel):
 
     class Config:
         """Pydantic configuration."""
+
         arbitrary_types_allowed = True
         extra = "forbid"
 

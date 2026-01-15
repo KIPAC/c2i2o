@@ -397,7 +397,7 @@ class NumpyTensorSet(TensorBase):
     >>> tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=values)
     >>> tensor_set.shape
     (3, 11)
-    
+
     >>> # Create from list of tensors
     >>> from c2i2o.core.tensor import NumpyTensor
     >>> tensors = [
@@ -436,30 +436,30 @@ class NumpyTensorSet(TensorBase):
         """
         grid = info.data.get("grid")
         n_samples = info.data.get("n_samples")
-        
+
         if grid is None or n_samples is None:
             return v
-        
+
         # Get expected grid shape
         if isinstance(grid, Grid1D):
             expected_grid_shape = (grid.n_points,)
         elif isinstance(grid, ProductGrid):
             expected_grid_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
         else:
-            expected_grid_shape = getattr(grid, 'shape', ())
-        
+            expected_grid_shape = getattr(grid, "shape", ())
+
         expected_shape = (n_samples,) + expected_grid_shape
-        
+
         if v.shape != expected_shape:
             raise ValueError(
                 f"Values shape {v.shape} does not match expected shape "
                 f"(n_samples={n_samples}, grid_shape={expected_grid_shape}) = {expected_shape}"
             )
-        
+
         return v
 
-    @model_validator(mode='after')
-    def validate_n_samples_matches_values(self) -> 'NumpyTensorSet':
+    @model_validator(mode="after")
+    def validate_n_samples_matches_values(self) -> "NumpyTensorSet":
         """Validate that n_samples matches first dimension of values.
 
         Returns
@@ -519,37 +519,36 @@ class NumpyTensorSet(TensorBase):
         """
         if not tensors:
             raise ValueError("Cannot create NumpyTensorSet from empty tensor list")
-        
+
         # Use first tensor's grid as reference
         grid = tensors[0].grid
         n_samples = len(tensors)
-        
+
         # Validate all tensors have the same grid
         # Note: This is a simple check; might want to implement grid equality
         for i, tensor in enumerate(tensors[1:], start=1):
             if tensor.grid is not grid and not cls._grids_equal(tensor.grid, grid):
                 raise ValueError(
-                    f"Tensor {i} has different grid than tensor 0. "
-                    "All tensors must share the same grid."
+                    f"Tensor {i} has different grid than tensor 0. " "All tensors must share the same grid."
                 )
-        
+
         # Stack values from all tensors
         values_list = []
         for tensor in tensors:
             # Get numpy array from tensor
-            if hasattr(tensor, 'to_numpy'):
+            if hasattr(tensor, "to_numpy"):
                 tensor_values = tensor.to_numpy()
             elif isinstance(tensor.values, np.ndarray):
                 tensor_values = tensor.values
             else:
                 # For TensorFlow or other backends
                 tensor_values = np.array(tensor.values)
-            
+
             values_list.append(tensor_values)
-        
+
         # Stack along new first dimension
         stacked_values = np.stack(values_list, axis=0)
-        
+
         return cls(
             grid=grid,
             n_samples=n_samples,
@@ -572,7 +571,7 @@ class NumpyTensorSet(TensorBase):
         # Simple implementation - can be enhanced
         if type(grid1) != type(grid2):
             return False
-        
+
         if isinstance(grid1, Grid1D) and isinstance(grid2, Grid1D):
             return (
                 grid1.min_value == grid2.min_value
@@ -586,7 +585,7 @@ class NumpyTensorSet(TensorBase):
                 NumpyTensorSet._grids_equal(grid1.grids[name], grid2.grids[name])
                 for name in grid1.dimension_names
             )
-        
+
         return False
 
     def get_values(self) -> np.ndarray:
@@ -615,19 +614,15 @@ class NumpyTensorSet(TensorBase):
         if isinstance(self.grid, Grid1D):
             expected_grid_shape = (self.grid.n_points,)
         elif isinstance(self.grid, ProductGrid):
-            expected_grid_shape = tuple(
-                self.grid.grids[name].n_points for name in self.grid.dimension_names
-            )
+            expected_grid_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
         else:
-            expected_grid_shape = getattr(self.grid, 'shape', ())
-        
+            expected_grid_shape = getattr(self.grid, "shape", ())
+
         expected_shape = (self.n_samples,) + expected_grid_shape
-        
+
         if values.shape != expected_shape:
-            raise ValueError(
-                f"Values shape {values.shape} does not match expected shape {expected_shape}"
-            )
-        
+            raise ValueError(f"Values shape {values.shape} does not match expected shape {expected_shape}")
+
         self.values = values
 
     def evaluate(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
@@ -657,9 +652,7 @@ class NumpyTensorSet(TensorBase):
         elif isinstance(self.grid, ProductGrid):
             return self._evaluate_product(points)
         else:
-            raise NotImplementedError(
-                f"Evaluation not implemented for grid type {type(self.grid).__name__}"
-            )
+            raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
 
     def _evaluate_1d(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
         """Evaluate Grid1D tensor set using linear interpolation.
@@ -689,7 +682,7 @@ class NumpyTensorSet(TensorBase):
         for i in range(self.n_samples):
             result = np.interp(point_array, grid_points, self.values[i])
             results.append(result)
-        
+
         return np.array(results)
 
     def _evaluate_product(self, points: dict[str, np.ndarray]) -> np.ndarray:
@@ -728,7 +721,7 @@ class NumpyTensorSet(TensorBase):
             )
             result = cast(np.ndarray, interpolator(eval_points))
             results.append(result)
-        
+
         return np.array(results)
 
     def get_sample(self, index: int) -> np.ndarray:
@@ -755,9 +748,7 @@ class NumpyTensorSet(TensorBase):
         (11,)
         """
         if index < 0 or index >= self.n_samples:
-            raise IndexError(
-                f"Sample index {index} out of range [0, {self.n_samples})"
-            )
+            raise IndexError(f"Sample index {index} out of range [0, {self.n_samples})")
         return self.values[index]
 
     @property
