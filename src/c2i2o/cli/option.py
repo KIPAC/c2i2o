@@ -175,3 +175,70 @@ verbose_opt = PartialOption(
     help="Enable verbose output",
 )
 """Verbose output flag."""
+
+
+# ============================================================================
+# Emulator Options
+# ============================================================================
+
+emulator_path_opt = PartialOption(
+    "--emulator-path",
+    "-e",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to trained emulator directory",
+)
+"""Trained emulator path option (required)."""
+
+emulator_output_opt = PartialOption(
+    "--emulator-output",
+    "-e",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Directory to save trained emulator",
+)
+"""Emulator output directory option (required)."""
+
+epochs_opt = PartialOption(
+    "--epochs",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Number of training epochs",
+)
+"""Training epochs option."""
+
+batch_size_opt = PartialOption(
+    "--batch-size",
+    type=int,
+    default=32,
+    show_default=True,
+    help="Batch size for training or prediction",
+)
+"""Batch size option."""
+
+validation_split_opt = PartialOption(
+    "--validation-split",
+    type=float,
+    default=0.2,
+    show_default=True,
+    help="Fraction of data for validation",
+)
+"""Validation split option."""
+
+early_stopping_opt = PartialOption(
+    "--early-stopping/--no-early-stopping",
+    default=False,
+    show_default=True,
+    help="Use early stopping during training",
+)
+"""Early stopping flag."""
+
+patience_opt = PartialOption(
+    "--patience",
+    type=int,
+    default=10,
+    show_default=True,
+    help="Patience for early stopping",
+)
+"""Early stopping patience option."""

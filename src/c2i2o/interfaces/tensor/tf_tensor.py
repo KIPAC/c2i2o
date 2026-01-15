@@ -14,8 +14,13 @@ warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
     message="In the future `np.object` will be defined as the corresponding NumPy scalar",
-    )
-import tensorflow as tf
+)    
+try:
+    import tensorflow as tf
+
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 
 class TFTensor(TensorBase):

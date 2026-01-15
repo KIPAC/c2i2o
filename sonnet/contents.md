@@ -371,53 +371,80 @@ Tracer: Collection of tracer elements for a cosmological observable
 **Purpose:** Abstract base class for emulator implementations.
 
 **Classes:**
-
-EmulatorBase: Abstract base class for all emulators (Generic[InputType, OutputType])
+- EmulatorBase: Abstract base for all emulators
   - Type Parameters:
-    - InputType: Type of input data (e.g., dict[str, np.ndarray], np.ndarray)
-    - OutputType: Type of output data (e.g., dict[str, np.ndarray], np.ndarray)
+    - InputType: Type of input data (e.g., dict[str, np.ndarray])
+    - OutputType: Type of output data (e.g., list[IntermediateSet])
   - Required fields:
     - emulator_type (str): Type identifier for the emulator
-    - name (str): Unique identifier for this emulator instance
-  - State fields:
-    - is_trained (bool, default=False): Whether emulator has been trained
-    - input_shape (Any | None, default=None): Expected shape/structure of input data
-    - output_shape (Any | None, default=None): Expected shape/structure of output data
-  - Abstract methods (must be implemented by subclasses):
-    - train(input_data: InputType, output_data: OutputType, **kwargs) -> None: Train the emulator
-    - emulate(input_data: InputType, **kwargs) -> OutputType: Evaluate trained emulator
-    - save(filepath: str | Path, **kwargs) -> None: Serialize emulator to disk
-    - load(filepath: str | Path, **kwargs) -> EmulatorBase: Deserialize emulator (classmethod)
-    - _validate_input_data(input_data: InputType) -> None: Validate and set input_shape
-    - _validate_output_data(output_data: OutputType) -> None: Validate and set output_shape
-  - Utility methods:
-    - _check_is_trained() -> None: Verify emulator is trained before use
-    - get_input_parameters() -> list[str] | None: Get input parameter names (for dict inputs)
-    - get_output_parameters() -> list[str] | None: Get output parameter names (for dict outputs)
-  - Validation:
-    - Ensures name is not empty
-    - Tracks training state to prevent untrained evaluation
-    - Records input/output shapes during training
+    - name (str): Unique name for this emulator instance
+  - Optional fields:
+    - is_trained (bool): Whether emulator has been trained (default: False)
+    - input_shape (Any | None): Expected shape/structure of input data
+    - output_shape (Any | None): Expected shape/structure of output data
+  - Abstract methods:
+    - train(input_data, output_data, **kwargs): Train the emulator
+    - emulate(input_data, **kwargs) -> OutputType: Apply trained emulator
+    - save(filepath, **kwargs): Save emulator to disk
+    - load(filepath, **kwargs) -> EmulatorBase: Load emulator from disk (classmethod)
+    - _validate_input_data(input_data): Validate input data format
+    - _validate_output_data(output_data): Validate output data format
+  - Validation: Pydantic-based with extra='forbid'
 
 **Features:**
-- Generic type system for flexible input/output types
-- Enforces training before evaluation or serialization
-- Automatic shape/structure tracking
-- Common interface for all emulator implementations
-- Support for parameter name introspection (dict-based inputs/outputs)
+- Generic type support for flexible input/output types
+- Validation framework for data consistency
+- Serialization interface for model persistence
+- Training state tracking via is_trained flag
+- Shape tracking for input/output validation
 
 **Design Decisions:**
-- Abstract base class defines interface contract
-- Pydantic BaseModel for validation and serialization
-- Generic types allow type-safe subclass implementations
-- Subclasses must handle serialization/deserialization
-- Shape tracking enables runtime validation
-- _check_is_trained() prevents common usage errors
+- Generic base class allows specialization for different use cases
+- Abstract methods enforce consistent interface across implementations
+- Pydantic integration provides automatic validation
+- input_shape and output_shape set during training for runtime validation
 
-**Notes:**
-- Subclasses should call _validate_input_data() and _validate_output_data() during train()
-- Subclasses should call _check_is_trained() at start of emulate() and save()
-- Shape information should be saved/loaded with model parameters
+
+### src/c2i2o/core/c2i_emulator.py
+
+**Purpose:** Abstract base class for cosmology-to-intermediate emulators.
+
+**Classes:**
+- C2IEmulator: Emulator mapping cosmological parameters to intermediates
+  - Inherits from: EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]
+  - Required fields:
+    - baseline_cosmology (CosmologyBase): Reference cosmology
+    - grids (dict[str, GridBase | None]): Grids for each intermediate (None before training)
+  - Properties:
+    - intermediate_names (list[str]): Sorted list from grids.keys()
+  - Helper methods:
+    - _get_grid_shape(grid: GridBase) -> tuple[int, ...]: Get shape from grid
+  - Validation methods:
+    - _validate_input_data(input_data: dict[str, np.ndarray]): Validate cosmological parameters
+    - _validate_output_data(output_data: list[IntermediateSet]): Validate intermediate data
+  - Abstract methods (inherited from EmulatorBase):
+    - train(input_data, output_data, **kwargs): Train on parameter variations
+    - emulate(input_data, **kwargs) -> list[IntermediateSet]: Emulate intermediates
+    - save(filepath, **kwargs): Save emulator
+    - load(filepath, **kwargs) -> C2IEmulator: Load emulator (classmethod)
+
+**Features:**
+- Specialized for cosmology-to-intermediate mapping
+- Grid-based representation of intermediate quantities
+- Automatic intermediate_names from grids dictionary (no redundancy)
+- Stores grids during training (initially None placeholders)
+- Output shapes stored as lists (not tuples) for YAML serialization
+- Input/output validation with detailed error messages
+
+**Design Decisions:**
+- Inherits from EmulatorBase with specific type parameters
+- intermediate_names is property (single source of truth from grids)
+- grids can be None before training, populated during training
+- Baseline cosmology provides reference for parameter variations
+- _get_grid_shape handles Grid1D and ProductGrid types
+- output_shape stored as lists for clean YAML serialization
+
+
 
 ### src/c2i2o/core/multi_distribution.py
 
@@ -675,11 +702,23 @@ EmulatorBase: Abstract base class for all emulators (Generic[InputType, OutputTy
     - 1D: Linear interpolation via `np.interp()`
     - Multi-D: Multi-linear via `scipy.interpolate.RegularGridInterpolator`
 
+- `NumpyTensorSet`: Multi-sample tensor collection
+  - `tensor_type`: "numpy_set"
+  - Field: `n_samples` (int > 0)
+  - Field: `values` (np.ndarray, shape `(n_samples, *grid.shape)`)
+  - Validates: `values.shape[0] == n_samples`, shape matches grid
+  - Classmethod: `from_tensor_list(tensors)` - stack tensors on common grid
+  - Method: `get_sample(index)` - extract single sample
+  - Property: `grid_shape` - shape excluding sample dimension
+  - Interpolation: Evaluates all samples, returns `(n_samples, n_points)`
+
 **Design Decisions**:
 - Backend abstraction allows future TensorFlow/PyTorch support
 - Grid integration ensures consistent domain/shape
 - Automatic validation prevents shape mismatches
 - Interpolation methods chosen for speed and stability
+- NumpyTensorSet: Sample dimension always first axis for efficient batch operations
+- Grid compatibility checking in `from_tensor_list` ensures consistent structure
 
 ---
 
@@ -702,17 +741,25 @@ EmulatorBase: Abstract base class for all emulators (Generic[InputType, OutputTy
     - `add(intermediate)`, `remove(name)`
   - Dict-like interface: `__getitem__`, `__contains__`, `__len__`
 
+- `IntermediateMultiSet`: Multi-sample intermediate collection
+  - Inherits from: `IntermediateSet`
+  - Property: `n_samples` (derived from intermediates)
+  - Validates: All intermediates contain `NumpyTensorSet` with matching `n_samples`
+  - Classmethod: `from_intermediate_set_list(iset_list)` - combine sets
+  - Methods: `__getitem__(index)` returns `IntermediateSet`, `__len__`, `__iter__`
+  - Use case: Efficient batch storage for training/prediction data
+
 **Design Decisions**:
 - Intermediates wrap tensors with physical semantics
 - Sets enable batch operations on related quantities
 - Validation ensures name consistency
 - Dict-like interface for intuitive access
+- MultiSet: Requires `NumpyTensorSet` for memory-efficient batch operations
 
 **Future Subclasses** (planned but not yet implemented):
 - `MatterPowerSpectrum`: P(k) at given redshift
 - `ComovingDistanceEvolution`: χ(z)
 - `HubbleEvolution`: H(z)
-
 
 
 
@@ -1021,6 +1068,121 @@ CCLCMBLensingTracerConfig: CCL implementation of CMB lensing tracer
 - Create CCL cosmology: cosmo = pyccl.CosmologyVanillaLCDM(...)
 - Get CCL tracer: tracer = tracer_cfg.to_ccl_tracer(cosmo)
 - Use in CCL calculations: cl = pyccl.angular_cl(cosmo, tracer1, tracer2, ell)
+
+
+### src/c2i2o/interfaces/tensor/tf_tensor.py
+
+**Purpose:** TensorFlow tensor implementation for grid-based data.
+
+**Classes:**
+- TFTensor: TensorFlow-backed tensor on grids
+  - Inherits from: TensorBase
+  - tensor_type: Literal["tensorflow"]
+  - Required fields:
+    - grid (GridBase): Grid defining tensor domain
+    - values (tf.Tensor): TensorFlow tensor containing values
+  - Validation:
+    - Field validator ensures values shape matches grid shape
+    - Accepts tf.Tensor or np.ndarray (converts to tf.Tensor)
+    - Validates shape compatibility on initialization and set_values
+  - Methods:
+    - get_values() -> tf.Tensor: Return underlying TensorFlow tensor
+    - set_values(values: tf.Tensor | np.ndarray): Set tensor values
+    - evaluate(points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray: Interpolate at points
+    - flatten() -> np.ndarray: Flatten to 1D NumPy array (for emulator training)
+    - to_numpy() -> np.ndarray: Convert to NumPy array
+  - Properties:
+    - shape (tuple[int, ...]): Tensor dimensions
+    - ndim (int): Number of dimensions
+    - dtype (tf.DType): TensorFlow data type
+  - Private methods:
+    - _evaluate_1d(points) -> np.ndarray: Linear interpolation for Grid1D
+    - _evaluate_product(points) -> np.ndarray: Multi-linear for ProductGrid
+
+**Interpolation:**
+- Grid1D: Uses numpy.interp for 1D linear interpolation
+- ProductGrid: Uses scipy.interpolate.RegularGridInterpolator
+- Converts TF tensor to NumPy for interpolation (scipy compatibility)
+- Returns NumPy arrays for consistency with NumpyTensor
+
+**Features:**
+- Drop-in replacement for NumpyTensor in emulator framework
+- Automatic conversion between TensorFlow and NumPy
+- GPU acceleration support via TensorFlow
+- Compatible with Keras model training
+- Same interpolation behavior as NumpyTensor
+
+**Design Decisions:**
+- Field validator converts np.ndarray to tf.Tensor automatically
+- flatten() method for emulator compatibility (calls tf.reshape + .numpy())
+- Interpolation converts to NumPy (scipy doesn't support TF tensors)
+- dtype is tf.float32 by default for consistency
+- evaluate() returns np.ndarray (not tf.Tensor) for interface consistency
+- Validation ensures grid shape matches at initialization and assignment
+- _evaluate_1d and _evaluate_product mirror NumpyTensor implementation
+
+
+### src/c2i2o/interfaces/emulator/tf_emulator.py
+
+**Purpose:** TensorFlow implementation of C2I emulator.
+
+**Classes:**
+- TFC2IEmulator: Neural network emulator using TensorFlow/Keras
+  - Inherits from: C2IEmulator
+  - emulator_type: Literal["tf_c2i"]
+  - Configuration fields:
+    - hidden_layers (list[int]): Layer sizes (default: [128, 64, 32])
+    - learning_rate (float): Adam optimizer learning rate (default: 0.001)
+    - activation (str): Activation function (default: "relu")
+  - State fields:
+    - models (dict[str, Any]): Keras models for each intermediate
+    - normalizers (dict[str, np.ndarray] | None): Normalization parameters
+    - training_samples (int | None): Number of training samples
+  - Methods:
+    - _check_is_trained(): Verify emulator is trained
+    - _build_model(input_dim, output_dim) -> keras.Model: Build NN architecture
+    - train(input_data, output_data, **kwargs): Train neural networks
+    - emulate(input_data, **kwargs) -> list[IntermediateSet]: Predict intermediates
+    - save(filepath, **kwargs): Save to directory structure
+    - load(filepath, **kwargs) -> TFC2IEmulator: Load from directory (classmethod)
+
+**Training kwargs:**
+- epochs (int): Number of training epochs (default: 100)
+- batch_size (int): Batch size (default: 32)
+- validation_split (float): Validation fraction (default: 0.0)
+- verbose (int): Verbosity level (default: 1)
+- early_stopping (bool): Use early stopping (default: False)
+- patience (int): Early stopping patience (default: 10)
+
+**Emulation kwargs:**
+- batch_size (int): Prediction batch size (default: 32)
+
+**Save/Load structure:**
+- filepath/
+  - config.yaml: Emulator configuration (excludes models, grids, normalizers, baseline_cosmology)
+  - baseline_cosmology.yaml: Cosmology parameters
+  - normalizers.npz: Input/output normalization arrays
+  - grids/: Grid definitions (YAML per intermediate)
+  - models/: Keras model directories (one per intermediate)
+
+**Features:**
+- Separate neural network per intermediate quantity
+- Input/output normalization (zero mean, unit variance)
+- Flexible network architecture configuration
+- Early stopping support with validation monitoring
+- GPU acceleration via TensorFlow
+- Complete save/load with grid and cosmology reconstruction
+- TFTensor output for consistency with training data
+
+**Design Decisions:**
+- One model per intermediate allows different complexities
+- Normalization improves training stability
+- MSE loss for regression tasks
+- Linear output activation for unbounded predictions
+- Separate save files for different data types (YAML, NPZ, Keras)
+- Grids reconstructed from YAML (Grid1D, ProductGrid)
+- Baseline cosmology reconstructed based on cosmology_type field
+- No backward compatibility with intermediate_names parameter
 
 
 ## Data Flow Examples

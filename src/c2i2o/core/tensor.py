@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal, cast
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core.core_schema import ValidationInfo
 from scipy.interpolate import RegularGridInterpolator
 
@@ -366,7 +366,446 @@ class NumpyTensor(TensorBase):
         return f"NumpyTensor(shape={self.shape}, grid_type={type(self.grid).__name__})"
 
 
+class NumpyTensorSet(TensorBase):
+    """Tensor set implementation for multiple samples on a common grid.
+
+    This class represents a collection of tensors defined on the same grid,
+    stacked along a sample dimension. The values array has shape (n_samples, ...)
+    where the remaining dimensions match the grid shape.
+
+    Attributes
+    ----------
+    tensor_type
+        Always "numpy_set" for this implementation.
+    grid
+        The grid defining the tensor's domain (shared across all samples).
+    n_samples
+        Number of samples in the tensor set.
+    values
+        NumPy array containing tensor values with shape (n_samples, *grid.shape).
+
+    Examples
+    --------
+    >>> from c2i2o.core.grid import Grid1D
+    >>> grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
+    >>> # Values for 3 samples
+    >>> values = np.array([
+    ...     np.linspace(0, 10, 11),
+    ...     np.linspace(0, 20, 11),
+    ...     np.linspace(0, 30, 11),
+    ... ])
+    >>> tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=values)
+    >>> tensor_set.shape
+    (3, 11)
+    
+    >>> # Create from list of tensors
+    >>> from c2i2o.core.tensor import NumpyTensor
+    >>> tensors = [
+    ...     NumpyTensor(grid=grid, values=np.linspace(0, 10, 11)),
+    ...     NumpyTensor(grid=grid, values=np.linspace(0, 20, 11)),
+    ... ]
+    >>> tensor_set = NumpyTensorSet.from_tensor_list(tensors)
+    >>> tensor_set.n_samples
+    2
+    """
+
+    tensor_type: Literal["numpy_set"] = "numpy_set"
+    n_samples: int = Field(..., gt=0, description="Number of samples in the tensor set")
+    values: np.ndarray = Field(..., description="NumPy array with shape (n_samples, *grid.shape)")
+
+    @field_validator("values")
+    @classmethod
+    def validate_values_shape(cls, v: np.ndarray, info: ValidationInfo) -> np.ndarray:
+        """Validate that values shape matches (n_samples, *grid.shape).
+
+        Parameters
+        ----------
+        v
+            The values to validate.
+        info
+            Validation context containing grid and n_samples.
+
+        Returns
+        -------
+            Validated array.
+
+        Raises
+        ------
+        ValueError
+            If shape doesn't match expected dimensions.
+        """
+        grid = info.data.get("grid")
+        n_samples = info.data.get("n_samples")
+        
+        if grid is None or n_samples is None:
+            return v
+        
+        # Get expected grid shape
+        if isinstance(grid, Grid1D):
+            expected_grid_shape = (grid.n_points,)
+        elif isinstance(grid, ProductGrid):
+            expected_grid_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
+        else:
+            expected_grid_shape = getattr(grid, 'shape', ())
+        
+        expected_shape = (n_samples,) + expected_grid_shape
+        
+        if v.shape != expected_shape:
+            raise ValueError(
+                f"Values shape {v.shape} does not match expected shape "
+                f"(n_samples={n_samples}, grid_shape={expected_grid_shape}) = {expected_shape}"
+            )
+        
+        return v
+
+    @model_validator(mode='after')
+    def validate_n_samples_matches_values(self) -> 'NumpyTensorSet':
+        """Validate that n_samples matches first dimension of values.
+
+        Returns
+        -------
+            Validated instance.
+
+        Raises
+        ------
+        ValueError
+            If n_samples doesn't match values.shape[0].
+        """
+        if self.values.shape[0] != self.n_samples:
+            raise ValueError(
+                f"n_samples={self.n_samples} doesn't match values.shape[0]={self.values.shape[0]}"
+            )
+        return self
+
+    @classmethod
+    def from_tensor_list(
+        cls,
+        tensors: list[TensorBase],
+    ) -> "NumpyTensorSet":
+        """Construct a NumpyTensorSet from a list of tensors.
+
+        All tensors must be defined on the same grid. The tensors will be
+        stacked along a new sample dimension.
+
+        Parameters
+        ----------
+        tensors
+            List of TensorBase instances to stack. Must all have the same grid.
+
+        Returns
+        -------
+            NumpyTensorSet with stacked values.
+
+        Raises
+        ------
+        ValueError
+            If tensor list is empty or tensors have different grids.
+
+        Examples
+        --------
+        >>> from c2i2o.core.grid import Grid1D
+        >>> from c2i2o.core.tensor import NumpyTensor
+        >>> grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
+        >>> tensors = [
+        ...     NumpyTensor(grid=grid, values=np.linspace(0, 10, 11)),
+        ...     NumpyTensor(grid=grid, values=np.linspace(0, 20, 11)),
+        ...     NumpyTensor(grid=grid, values=np.linspace(0, 30, 11)),
+        ... ]
+        >>> tensor_set = NumpyTensorSet.from_tensor_list(tensors)
+        >>> tensor_set.n_samples
+        3
+        >>> tensor_set.shape
+        (3, 11)
+        """
+        if not tensors:
+            raise ValueError("Cannot create NumpyTensorSet from empty tensor list")
+        
+        # Use first tensor's grid as reference
+        grid = tensors[0].grid
+        n_samples = len(tensors)
+        
+        # Validate all tensors have the same grid
+        # Note: This is a simple check; might want to implement grid equality
+        for i, tensor in enumerate(tensors[1:], start=1):
+            if tensor.grid is not grid and not cls._grids_equal(tensor.grid, grid):
+                raise ValueError(
+                    f"Tensor {i} has different grid than tensor 0. "
+                    "All tensors must share the same grid."
+                )
+        
+        # Stack values from all tensors
+        values_list = []
+        for tensor in tensors:
+            # Get numpy array from tensor
+            if hasattr(tensor, 'to_numpy'):
+                tensor_values = tensor.to_numpy()
+            elif isinstance(tensor.values, np.ndarray):
+                tensor_values = tensor.values
+            else:
+                # For TensorFlow or other backends
+                tensor_values = np.array(tensor.values)
+            
+            values_list.append(tensor_values)
+        
+        # Stack along new first dimension
+        stacked_values = np.stack(values_list, axis=0)
+        
+        return cls(
+            grid=grid,
+            n_samples=n_samples,
+            values=stacked_values,
+        )
+
+    @staticmethod
+    def _grids_equal(grid1: GridBase, grid2: GridBase) -> bool:
+        """Check if two grids are equal.
+
+        Parameters
+        ----------
+        grid1, grid2
+            Grids to compare.
+
+        Returns
+        -------
+            True if grids are equivalent.
+        """
+        # Simple implementation - can be enhanced
+        if type(grid1) != type(grid2):
+            return False
+        
+        if isinstance(grid1, Grid1D) and isinstance(grid2, Grid1D):
+            return (
+                grid1.min_value == grid2.min_value
+                and grid1.max_value == grid2.max_value
+                and grid1.n_points == grid2.n_points
+            )
+        elif isinstance(grid1, ProductGrid) and isinstance(grid2, ProductGrid):
+            if set(grid1.dimension_names) != set(grid2.dimension_names):
+                return False
+            return all(
+                NumpyTensorSet._grids_equal(grid1.grids[name], grid2.grids[name])
+                for name in grid1.dimension_names
+            )
+        
+        return False
+
+    def get_values(self) -> np.ndarray:
+        """Get the underlying tensor values.
+
+        Returns
+        -------
+            NumPy array with shape (n_samples, *grid.shape).
+        """
+        return self.values
+
+    def set_values(self, values: np.ndarray) -> None:
+        """Set the underlying tensor values.
+
+        Parameters
+        ----------
+        values
+            NumPy array with shape (n_samples, *grid.shape).
+
+        Raises
+        ------
+        ValueError
+            If values shape doesn't match expected dimensions.
+        """
+        # Determine expected shape
+        if isinstance(self.grid, Grid1D):
+            expected_grid_shape = (self.grid.n_points,)
+        elif isinstance(self.grid, ProductGrid):
+            expected_grid_shape = tuple(
+                self.grid.grids[name].n_points for name in self.grid.dimension_names
+            )
+        else:
+            expected_grid_shape = getattr(self.grid, 'shape', ())
+        
+        expected_shape = (self.n_samples,) + expected_grid_shape
+        
+        if values.shape != expected_shape:
+            raise ValueError(
+                f"Values shape {values.shape} does not match expected shape {expected_shape}"
+            )
+        
+        self.values = values
+
+    def evaluate(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
+        """Evaluate all samples at arbitrary points via interpolation.
+
+        Parameters
+        ----------
+        points
+            Dictionary mapping dimension names to arrays of evaluation points,
+            or numpy array for Grid1D.
+
+        Returns
+        -------
+            Interpolated values with shape (n_samples, n_points).
+
+        Examples
+        --------
+        >>> # For 1D grid
+        >>> points = np.array([0.25, 0.5, 0.75])
+        >>> result = tensor_set.evaluate(points)
+        >>> result.shape
+        (n_samples, 3)
+        """
+        # Delegate to grid-specific methods
+        if isinstance(self.grid, Grid1D):
+            return self._evaluate_1d(points)
+        elif isinstance(self.grid, ProductGrid):
+            return self._evaluate_product(points)
+        else:
+            raise NotImplementedError(
+                f"Evaluation not implemented for grid type {type(self.grid).__name__}"
+            )
+
+    def _evaluate_1d(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
+        """Evaluate Grid1D tensor set using linear interpolation.
+
+        Parameters
+        ----------
+        points
+            Evaluation points as array or single-key dict.
+
+        Returns
+        -------
+            Interpolated values with shape (n_samples, n_points).
+        """
+        # Handle both dict and direct array input
+        if isinstance(points, dict):
+            if len(points) != 1:
+                raise ValueError("For Grid1D, points dict must contain exactly one key")
+            point_array = list(points.values())[0]
+        else:
+            point_array = points
+
+        # Build grid points
+        grid_points = self.grid.build_grid()
+
+        # Interpolate each sample
+        results = []
+        for i in range(self.n_samples):
+            result = np.interp(point_array, grid_points, self.values[i])
+            results.append(result)
+        
+        return np.array(results)
+
+    def _evaluate_product(self, points: dict[str, np.ndarray]) -> np.ndarray:
+        """Evaluate product grid tensor set using multi-linear interpolation.
+
+        Parameters
+        ----------
+        points
+            Dictionary mapping dimension names to point arrays.
+
+        Returns
+        -------
+            Interpolated values with shape (n_samples, n_points).
+        """
+        if not isinstance(self.grid, ProductGrid):  # pragma: no cover
+            return self._evaluate_1d(points)
+
+        # Check that all dimensions are present
+        dim_names = self.grid.dimension_names
+        for name in dim_names:
+            if name not in points:
+                raise KeyError(f"Dimension '{name}' missing from evaluation points")
+
+        # Build grid for each dimension
+        grid_1d = [self.grid.grids[name].build_grid() for name in dim_names]
+
+        # Stack points in correct order
+        eval_points = np.stack([points[name] for name in dim_names], axis=-1)
+
+        # Interpolate each sample
+        results = []
+        for i in range(self.n_samples):
+            # Create interpolator for this sample
+            interpolator = RegularGridInterpolator(
+                grid_1d, self.values[i], method="linear", bounds_error=False, fill_value=None
+            )
+            result = cast(np.ndarray, interpolator(eval_points))
+            results.append(result)
+        
+        return np.array(results)
+
+    def get_sample(self, index: int) -> np.ndarray:
+        """Get values for a specific sample.
+
+        Parameters
+        ----------
+        index
+            Sample index (0 to n_samples-1).
+
+        Returns
+        -------
+            NumPy array with values for the specified sample.
+
+        Raises
+        ------
+        IndexError
+            If index is out of range.
+
+        Examples
+        --------
+        >>> sample_0 = tensor_set.get_sample(0)
+        >>> sample_0.shape
+        (11,)
+        """
+        if index < 0 or index >= self.n_samples:
+            raise IndexError(
+                f"Sample index {index} out of range [0, {self.n_samples})"
+            )
+        return self.values[index]
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Get the shape of the tensor set.
+
+        Returns
+        -------
+            Tuple of dimension sizes including sample dimension.
+        """
+        return self.values.shape
+
+    @property
+    def ndim(self) -> int:
+        """Get the number of dimensions including sample dimension.
+
+        Returns
+        -------
+            Number of dimensions (1 + grid.ndim).
+        """
+        return self.values.ndim
+
+    @property
+    def grid_shape(self) -> tuple[int, ...]:
+        """Get the shape of the grid (excluding sample dimension).
+
+        Returns
+        -------
+            Tuple of grid dimension sizes.
+        """
+        return self.values.shape[1:]
+
+    def __repr__(self) -> str:
+        """Return string representation of the tensor set.
+
+        Returns
+        -------
+            String representation.
+        """
+        return (
+            f"NumpyTensorSet(n_samples={self.n_samples}, "
+            f"grid_shape={self.grid_shape}, "
+            f"grid_type={type(self.grid).__name__})"
+        )
+
+
 __all__ = [
     "TensorBase",
     "NumpyTensor",
+    "NumpyTensorSet",
 ]

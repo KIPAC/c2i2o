@@ -16,6 +16,13 @@ from c2i2o.cli.option import (
     output_file_opt,
     overwrite_opt,
     verbose_opt,
+    emulator_path_opt,
+    emulator_output_opt,
+    epochs_opt,
+    batch_size_opt,
+    validation_split_opt,
+    early_stopping_opt,
+    patience_opt,    
 )
 
 
@@ -106,3 +113,153 @@ def compute(
         raise click.ClickException(f"Invalid configuration or data: {e}") from e
     except Exception as e:  # pragma: no cover
         raise click.ClickException(f"Error computing intermediates: {e}") from e
+
+
+@c2i.command("train-emulator")
+@config_file_arg
+@input_file_opt
+@output_file_opt
+@emulator_output_opt
+@epochs_opt
+@batch_size_opt
+@validation_split_opt
+@early_stopping_opt
+@patience_opt
+@verbose_opt
+def train_emulator(
+    config_file,
+    input,
+    output,
+    emulator_output,
+    epochs,
+    batch_size,
+    validation_split,
+    early_stopping,
+    patience,
+    verbose,
+):
+    """Train a C2I emulator from data files.
+
+    This command trains a neural network emulator to predict intermediate
+    quantities from cosmological parameters. The training configuration
+    (including emulator architecture) is specified in the config file.
+
+    Examples:
+
+        c2i2o c2i train-emulator config.yaml --input params.hdf5 \\
+            --output intermediates.hdf5 --emulator-output models/my_emulator \\
+            --epochs 200
+
+        c2i2o c2i train-emulator config.yaml --input params.hdf5 \\
+            --output intermediates.hdf5 --emulator-output models/my_emulator \\
+            --early-stopping --patience 15 --verbose
+    """
+    from c2i2o.c2i_train_emulation import C2ITrainEmulator
+
+    # Load trainer configuration
+    if verbose:
+        click.echo(f"Loading training configuration from {config_file}...")
+
+    trainer = C2ITrainEmulator.from_yaml(config_file)
+
+    # Train from files
+    if verbose:
+        click.echo(f"Loading training data from {input} and {output}...")
+        click.echo(f"Training emulator '{trainer.emulator.name}'...")
+        click.echo(f"  Intermediates: {trainer.emulator.intermediate_names}")
+        click.echo(f"  Architecture: {trainer.emulator.hidden_layers}")
+        click.echo(f"  Epochs: {epochs}, Batch size: {batch_size}")
+        click.echo(f"  Validation split: {validation_split}")
+        if early_stopping:
+            click.echo(f"  Early stopping: enabled (patience={patience})")
+
+    trainer.train_from_file(
+        input_filepath=input,
+        output_filepath=output,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=validation_split,
+        verbose=1 if verbose else 0,
+        early_stopping=early_stopping,
+        patience=patience,
+    )
+
+    # Save trained emulator
+    if verbose:
+        click.echo(f"Saving trained emulator to {emulator_output}...")
+
+    trainer.save_emulator(emulator_output)
+
+    click.secho(
+        f"✓ Successfully trained emulator and saved to {emulator_output}",
+        fg="green",
+    )
+
+
+@c2i.command("emulate")
+@emulator_path_opt
+@input_file_opt
+@output_file_opt
+@batch_size_opt
+@overwrite_opt
+@verbose_opt
+def emulate(emulator_path, input, output, batch_size, overwrite, verbose):
+    """Emulate intermediates using a trained emulator.
+
+    This command loads a trained emulator and uses it to predict intermediate
+    quantities for the cosmological parameters in the input file.
+
+    Examples:
+
+        c2i2o c2i emulate --emulator-path models/my_emulator \\
+            --input test_params.hdf5 --output predictions.hdf5
+
+        c2i2o c2i emulate --emulator-path models/my_emulator \\
+            --input test_params.hdf5 --output predictions.hdf5 \\
+            --batch-size 64 --verbose
+    """
+    from c2i2o.c2i_emulator import C2IEmulatorImpl
+
+    # Check if output exists
+    if output.exists() and not overwrite:
+        click.secho(
+            f"Error: Output file '{output}' already exists. Use --overwrite to replace.",
+            fg="red",
+            err=True,
+        )
+        raise click.Abort()
+
+    # Load emulator
+    if verbose:
+        click.echo(f"Loading emulator from {emulator_path}...")
+
+    emulator_impl = C2IEmulatorImpl.load_emulator(emulator_path)
+
+    if verbose:
+        info = emulator_impl.get_emulator_info()
+        click.echo(f"  Emulator: {info['name']}")
+        click.echo(f"  Intermediates: {info['intermediate_names']}")
+        click.echo(f"  Training samples: {info['training_samples']}")
+        click.echo(f"  Architecture: {info['hidden_layers']}")
+
+    # Emulate from file
+    if verbose:
+        click.echo(f"Loading parameters from {input}...")
+        click.echo(f"Generating predictions...")
+
+    results = emulator_impl.emulate_from_file(
+        input_filepath=input,
+        output_filepath=output,
+        batch_size=batch_size,
+    )
+
+    if verbose:
+        click.echo(f"Generated predictions for {len(results)} parameter sets")
+
+    click.secho(
+        f"✓ Successfully emulated intermediates and saved to {output}",
+        fg="green",
+    )
+
+
+__all__ = ["c2i"]
