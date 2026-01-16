@@ -1,71 +1,21 @@
 """Unit tests for C2I emulator workflow."""
 
-import pytest
-import numpy as np
-import tensorflow as tf
 from pathlib import Path
 
+import numpy as np
+import pytest
+import tables_io
+import yaml
+
 from c2i2o.c2i_emulator import C2IEmulatorImpl
-from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
-from c2i2o.interfaces.ccl.cosmology import CCLCosmology, CCLCosmologyVanillaLCDM
-from c2i2o.core.grid import Grid1D
-from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
+from c2i2o.core.intermediate import IntermediateSet
 from c2i2o.interfaces.tensor.tf_tensor import TFTensor
-
-
-@pytest.fixture
-def baseline_cosmology() -> CCLCosmology:
-    """Create a baseline cosmology for testing."""
-    return CCLCosmologyVanillaLCDM()
-
-
-@pytest.fixture
-def trained_emulator(baseline_cosmology: CCLCosmology, tmp_path: str) -> TFC2IEmulator:
-    """Create and train an emulator for testing."""
-    grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
-    n_samples = 15
-
-    # Training data
-    input_data = {
-        "Omega_c": np.linspace(0.20, 0.30, n_samples),
-        "sigma8": np.linspace(0.7, 0.9, n_samples),
-    }
-
-    output_data = []
-    for i in range(n_samples):
-        k_values = grid.build_grid()
-        p_lin_values = input_data["Omega_c"][i] * input_data["sigma8"][i] * k_values
-        chi_values = input_data["Omega_c"][i] ** 2 * k_values
-
-        p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
-        chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
-
-        p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
-        chi = IntermediateBase(name="chi", tensor=chi_tensor)
-
-        iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
-        output_data.append(iset)
-
-    # Create and train emulator
-    emulator = TFC2IEmulator(
-        name="test_emulator",
-        baseline_cosmology=baseline_cosmology,
-        grids={"P_lin": None, "chi": None},
-        hidden_layers=[32, 16],
-    )
-    emulator.train(input_data, output_data, epochs=10, verbose=0)
-
-    # Save to disk
-    save_path = tmp_path / "trained_emulator"
-    emulator.save(save_path)
-
-    return save_path
 
 
 class TestC2IEmulatorImplInitialization:
     """Test C2IEmulatorImpl initialization."""
 
-    def test_load_emulator_basic(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_load_emulator_basic(self, trained_emulator: Path) -> None:
         """Test loading a trained emulator."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -74,14 +24,14 @@ class TestC2IEmulatorImplInitialization:
         assert set(emulator_impl.emulator.intermediate_names) == {"P_lin", "chi"}
         assert emulator_impl.output_dir is None
 
-    def test_load_emulator_with_output_dir(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_load_emulator_with_output_dir(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test loading emulator with output directory."""
         output_dir = tmp_path / "results"
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator, output_dir=output_dir)
 
         assert emulator_impl.output_dir == output_dir
 
-    def test_load_emulator_nonexistent_raises_error(self, tmp_path: str) -> None:
+    def test_load_emulator_nonexistent_raises_error(self, tmp_path: Path) -> None:
         """Test that loading nonexistent emulator raises error."""
         with pytest.raises(FileNotFoundError):
             C2IEmulatorImpl.load_emulator(tmp_path / "nonexistent")
@@ -90,7 +40,7 @@ class TestC2IEmulatorImplInitialization:
 class TestC2IEmulatorImplEmulate:
     """Test C2IEmulatorImpl emulate functionality."""
 
-    def test_emulate_basic(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_emulate_basic(self, trained_emulator: Path) -> None:
         """Test basic emulation."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -107,7 +57,7 @@ class TestC2IEmulatorImplEmulate:
         assert all("P_lin" in iset.intermediates for iset in results)
         assert all("chi" in iset.intermediates for iset in results)
 
-    def test_emulate_single_sample(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_emulate_single_sample(self, trained_emulator: Path) -> None:
         """Test emulation with single sample."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -122,7 +72,7 @@ class TestC2IEmulatorImplEmulate:
         assert "P_lin" in results[0].intermediates
         assert "chi" in results[0].intermediates
 
-    def test_emulate_with_batch_size(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_emulate_with_batch_size(self, trained_emulator: Path) -> None:
         """Test emulation with custom batch size."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -135,7 +85,7 @@ class TestC2IEmulatorImplEmulate:
 
         assert len(results) == 50
 
-    def test_emulate_wrong_parameters_raises_error(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_emulate_wrong_parameters_raises_error(self, trained_emulator: Path) -> None:
         """Test that wrong parameters raise error."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -145,7 +95,7 @@ class TestC2IEmulatorImplEmulate:
         with pytest.raises(ValueError, match="do not match"):
             emulator_impl.emulate(test_params)
 
-    def test_emulate_returns_tf_tensors(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_emulate_returns_tf_tensors(self, trained_emulator: Path) -> None:
         """Test that emulation returns TFTensor instances."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -163,13 +113,11 @@ class TestC2IEmulatorImplEmulate:
 class TestC2IEmulatorImplEmulateFromFile:
     """Test C2IEmulatorImpl emulate_from_file functionality."""
 
-    def test_emulate_from_file_no_save(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_emulate_from_file_no_save(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test emulation from file without saving."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
         # Create input file
-        import tables_io
-
         test_params = {
             "Omega_c": np.array([0.25, 0.27]),
             "sigma8": np.array([0.80, 0.85]),
@@ -182,13 +130,11 @@ class TestC2IEmulatorImplEmulateFromFile:
 
         assert len(results) == 2
 
-    def test_emulate_from_file_with_save(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_emulate_from_file_with_save(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test emulation from file with saving results."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
         # Create input file
-        import tables_io
-
         test_params = {
             "Omega_c": np.array([0.25, 0.27, 0.29]),
             "sigma8": np.array([0.80, 0.85, 0.90]),
@@ -207,20 +153,20 @@ class TestC2IEmulatorImplEmulateFromFile:
         loaded_results = tables_io.read(output_file)
         assert loaded_results is not None
 
-    def test_emulate_from_file_missing_input_raises_error(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_emulate_from_file_missing_input_raises_error(
+        self, trained_emulator: Path, tmp_path: Path
+    ) -> None:
         """Test that missing input file raises error."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
         with pytest.raises(FileNotFoundError, match="Input file not found"):
             emulator_impl.emulate_from_file(tmp_path / "nonexistent.hdf5")
 
-    def test_emulate_from_file_creates_output_dir(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_emulate_from_file_creates_output_dir(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test that output directory is created if needed."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
         # Create input file
-        import tables_io
-
         test_params = {
             "Omega_c": np.array([0.25]),
             "sigma8": np.array([0.80]),
@@ -238,7 +184,7 @@ class TestC2IEmulatorImplEmulateFromFile:
 class TestC2IEmulatorImplSavePredictions:
     """Test C2IEmulatorImpl save_predictions functionality."""
 
-    def test_save_predictions(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_save_predictions(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test saving predictions to file."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -254,7 +200,7 @@ class TestC2IEmulatorImplSavePredictions:
 
         assert output_file.exists()
 
-    def test_save_predictions_creates_parent_dir(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_save_predictions_creates_parent_dir(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test that save_predictions creates parent directories."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -274,7 +220,7 @@ class TestC2IEmulatorImplSavePredictions:
 class TestC2IEmulatorImplYAML:
     """Test C2IEmulatorImpl YAML serialization."""
 
-    def test_to_yaml(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_to_yaml(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test saving configuration to YAML."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator, output_dir=tmp_path / "results")
 
@@ -282,8 +228,6 @@ class TestC2IEmulatorImplYAML:
         emulator_impl.to_yaml(yaml_path)
 
         assert yaml_path.exists()
-
-        import yaml
 
         with open(yaml_path) as f:
             config = yaml.safe_load(f)
@@ -294,7 +238,7 @@ class TestC2IEmulatorImplYAML:
         assert config["is_trained"] is True
         assert config["output_dir"] == str(tmp_path / "results")
 
-    def test_to_yaml_creates_parent_dir(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_to_yaml_creates_parent_dir(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test that to_yaml creates parent directories."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -303,7 +247,7 @@ class TestC2IEmulatorImplYAML:
 
         assert yaml_path.exists()
 
-    def test_from_yaml(self, trained_emulator: TFC2IEmulator, tmp_path: str) -> None:
+    def test_from_yaml(self, trained_emulator: Path, tmp_path: Path) -> None:
         """Test loading configuration from YAML."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator, output_dir=tmp_path / "results")
 
@@ -317,7 +261,7 @@ class TestC2IEmulatorImplYAML:
         assert loaded_impl.emulator.is_trained
         assert set(loaded_impl.emulator.intermediate_names) == {"P_lin", "chi"}
 
-    def test_from_yaml_missing_file_raises_error(self, tmp_path: str, trained_emulator: TFC2IEmulator) -> None:
+    def test_from_yaml_missing_file_raises_error(self, tmp_path: Path, trained_emulator: Path) -> None:
         """Test that loading from missing file raises error."""
         with pytest.raises(FileNotFoundError, match="Configuration file not found"):
             C2IEmulatorImpl.from_yaml(tmp_path / "nonexistent.yaml", trained_emulator)
@@ -326,7 +270,7 @@ class TestC2IEmulatorImplYAML:
 class TestC2IEmulatorImplGetInfo:
     """Test C2IEmulatorImpl get_emulator_info functionality."""
 
-    def test_get_emulator_info(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_get_emulator_info(self, trained_emulator: Path) -> None:
         """Test getting emulator information."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 
@@ -346,7 +290,7 @@ class TestC2IEmulatorImplGetInfo:
 class TestC2IEmulatorImplRepr:
     """Test C2IEmulatorImpl string representation."""
 
-    def test_repr_trained(self, trained_emulator: TFC2IEmulator) -> None:
+    def test_repr_trained(self, trained_emulator: Path) -> None:
         """Test repr for trained emulator."""
         emulator_impl = C2IEmulatorImpl.load_emulator(trained_emulator)
 

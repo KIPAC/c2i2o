@@ -1,9 +1,14 @@
 """Pytest configuration and shared fixtures for c2i2o tests."""
 
+import warnings
+from pathlib import Path
+from typing import cast
+
 import numpy as np
 import pytest
 
 from c2i2o.core.computation import ComputationConfig
+from c2i2o.core.cosmology import CosmologyBase
 from c2i2o.core.distribution import FixedDistribution
 from c2i2o.core.grid import Grid1D, ProductGrid
 from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
@@ -12,6 +17,8 @@ from c2i2o.core.parameter_space import ParameterSpace
 from c2i2o.core.scipy_distributions import Norm, Uniform
 from c2i2o.core.tensor import NumpyTensor
 from c2i2o.core.tracer import Tracer, TracerElement
+from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
+from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
 try:
     import pyccl
@@ -26,6 +33,18 @@ try:
     PYCCL_AVAILABLE = True
 except ImportError:
     PYCCL_AVAILABLE = False
+
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="In the future `np.object` will be defined as the corresponding NumPy scalar",
+)
+try:
+    import tensorflow as tf
+
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 
 @pytest.fixture
@@ -228,3 +247,100 @@ def simple_multi_lognormal() -> MultiLogNormal:
     mean_log = np.array([0.0, 0.0])
     cov_log = np.eye(2) * 0.1
     return MultiLogNormal(mean=mean_log, cov=cov_log)
+
+
+@pytest.fixture
+def baseline_cosmology() -> CosmologyBase:
+    """Create a baseline cosmology for testing."""
+    return CCLCosmologyVanillaLCDM()
+
+
+@pytest.fixture
+def trained_emulator(
+    baseline_cosmology: CosmologyBase, tmp_path: Path  # pylint: disable=redefined-outer-name
+) -> Path:
+    """Create and train an emulator for testing."""
+    if not TF_AVAILABLE:
+        pytest.skip("Tensorflow not available")
+
+    grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
+    n_samples = 15
+
+    # Training data
+    input_data = {
+        "Omega_c": np.linspace(0.20, 0.30, n_samples),
+        "sigma8": np.linspace(0.7, 0.9, n_samples),
+    }
+
+    output_data = []
+    for i in range(n_samples):
+        k_values = grid.build_grid()
+        p_lin_values = input_data["Omega_c"][i] * input_data["sigma8"][i] * k_values
+        chi_values = input_data["Omega_c"][i] ** 2 * k_values
+
+        p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
+        chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
+
+        p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
+        chi = IntermediateBase(name="chi", tensor=chi_tensor)
+
+        iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
+        output_data.append(iset)
+
+    # Create and train emulator
+    emulator = TFC2IEmulator(
+        name="test_emulator",
+        baseline_cosmology=cast(CCLCosmologyVanillaLCDM, baseline_cosmology),
+        grids={"P_lin": None, "chi": None},
+        hidden_layers=[32, 16],
+    )
+    emulator.train(input_data, output_data, epochs=10, verbose=0)
+
+    # Save to disk
+    save_path = tmp_path / "trained_emulator"
+    emulator.save(save_path)
+
+    return save_path
+
+
+@pytest.fixture
+def test_emulator(baseline_cosmology: CosmologyBase) -> TFC2IEmulator:  # pylint: disable=redefined-outer-name
+    """Create a test emulator instance."""
+    return TFC2IEmulator(
+        name="test_emulator",
+        baseline_cosmology=cast(CCLCosmologyVanillaLCDM, baseline_cosmology),
+        grids={"P_lin": None, "chi": None},
+        hidden_layers=[32, 16],
+        learning_rate=0.001,
+    )
+
+
+@pytest.fixture
+def training_data() -> tuple[dict, list[IntermediateSet]]:
+    """Create simple training data."""
+    grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
+    n_samples = 10
+
+    # Input parameters
+    input_data = {
+        "Omega_c": np.linspace(0.20, 0.30, n_samples),
+        "sigma8": np.linspace(0.7, 0.9, n_samples),
+    }
+
+    # Output data
+    output_data = []
+    for i in range(n_samples):
+        k_values = grid.build_grid()
+        p_lin_values = input_data["Omega_c"][i] * input_data["sigma8"][i] * k_values
+        chi_values = input_data["Omega_c"][i] ** 2 * k_values
+
+        p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
+        chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
+
+        p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
+        chi = IntermediateBase(name="chi", tensor=chi_tensor)
+
+        iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
+        output_data.append(iset)
+
+    return input_data, output_data

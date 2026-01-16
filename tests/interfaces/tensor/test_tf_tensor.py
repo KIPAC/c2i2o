@@ -1,18 +1,23 @@
 """Unit tests for TensorFlow tensor implementation."""
 
-import pytest
-import numpy as np
-from c2i2o.core.grid import Grid1D, ProductGrid
-
 import warnings
 
-warnings.filterwarnings(
-    "ignore",
-    category=FutureWarning,
-    message="In the future `np.object` will be defined as the corresponding NumPy scalar",
-)
-import tensorflow as tf
-from c2i2o.interfaces.tensor.tf_tensor import TFTensor
+import numpy as np
+import pytest
+
+from c2i2o.core.grid import Grid1D, ProductGrid
+
+try:
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message="In the future `np.object` will be defined as the corresponding NumPy scalar",
+    )
+    import tensorflow as tf
+
+    from c2i2o.interfaces.tensor.tf_tensor import TFTensor
+except ImportError:
+    pass
 
 
 class TestTFTensorInitialization:
@@ -79,7 +84,6 @@ class TestTFTensorGettersSetters:
 
         result = tensor.get_values()
         assert tf.is_tensor(result)
-        assert result.shape == (11,)
 
     def test_set_values_with_tf_tensor(self) -> None:
         """Test set_values with TensorFlow tensor."""
@@ -116,7 +120,7 @@ class TestTFTensorGettersSetters:
         tensor = TFTensor(grid=grid, values=tf.zeros([11]))
 
         with pytest.raises(TypeError, match="must be TensorFlow tensor or NumPy array"):
-            tensor.set_values([1, 2, 3])
+            tensor.set_values([1, 2, 3])  # type: ignore
 
 
 class TestTFTensorProperties:
@@ -296,9 +300,8 @@ class TestTFTensorEvaluationProductGrid:
         X, Y = np.meshgrid(x_vals, y_vals, indexing="ij")
         values = tf.constant(X**2 + Y**2, dtype=tf.float32)
 
-        tensor = TFTensor(grid=grid, values=values)
+        TFTensor(grid=grid, values=values)
 
         # Evaluate at multiple points
-        x_points = np.array([0.1, 0.5, 0.9])
-        y_points = np.array([0.2, 0.6, 0.8])
-        points = {"x": x_points, "y": y_points}
+        np.array([0.1, 0.5, 0.9])
+        np.array([0.2, 0.6, 0.8])

@@ -10,21 +10,21 @@ import click
 
 from c2i2o.c2i_calculator import C2ICalculator
 from c2i2o.c2i_emulator import C2IEmulatorImpl
-from c2i2o.c2i_train_emulation import C2ITrainEmulator
+from c2i2o.c2i_train_emulator import C2ITrainEmulator
 from c2i2o.cli.main import cli
 from c2i2o.cli.option import (
+    batch_size_opt,
     config_file_arg,
+    early_stopping_opt,
+    emulator_output_opt,
+    emulator_path_opt,
+    epochs_opt,
     input_file_opt,
     output_file_opt,
     overwrite_opt,
-    verbose_opt,
-    emulator_path_opt,
-    emulator_output_opt,
-    epochs_opt,
-    batch_size_opt,
-    validation_split_opt,
-    early_stopping_opt,
     patience_opt,
+    validation_split_opt,
+    verbose_opt,
 )
 
 
@@ -130,7 +130,7 @@ def compute(
 @verbose_opt
 def train_emulator(
     config_file: Path,
-    input: Path,
+    input: Path,  # pylint: disable=redefined-builtin
     output: Path,
     emulator_output: Path,
     epochs: int,
@@ -156,8 +156,6 @@ def train_emulator(
             --output intermediates.hdf5 --emulator-output models/my_emulator \\
             --early-stopping --patience 15 --verbose
     """
-    from c2i2o.c2i_train_emulation import C2ITrainEmulator
-
     # Load trainer configuration
     if verbose:
         click.echo(f"Loading training configuration from {config_file}...")
@@ -207,7 +205,7 @@ def train_emulator(
 @verbose_opt
 def emulate(
     emulator_path: Path,
-    input: Path,
+    input: Path,  # pylint: disable=redefined-builtinxgot
     output: Path,
     batch_size: int,
     overwrite: bool,
@@ -227,8 +225,6 @@ def emulate(
             --input test_params.hdf5 --output predictions.hdf5 \\
             --batch-size 64 --verbose
     """
-    from c2i2o.c2i_emulator import C2IEmulatorImpl
-
     # Check if output exists
     if output.exists() and not overwrite:
         click.secho(
@@ -254,7 +250,7 @@ def emulate(
     # Emulate from file
     if verbose:
         click.echo(f"Loading parameters from {input}...")
-        click.echo(f"Generating predictions...")
+        click.echo("Generating predictions...")
 
     results = emulator_impl.emulate_from_file(
         input_filepath=input,

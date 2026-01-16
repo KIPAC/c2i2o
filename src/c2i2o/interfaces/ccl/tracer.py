@@ -10,11 +10,7 @@ import numpy as np
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
-from c2i2o.core.tracer import (
-    CMBLensingTracerConfig,
-    NumberCountsTracerConfig,
-    WeakLensingTracerConfig,
-)
+from c2i2o.core.tracer import CMBLensingTracerConfig, NumberCountsTracerConfig, WeakLensingTracerConfig
 
 try:
     import pyccl

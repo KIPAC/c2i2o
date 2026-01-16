@@ -4,24 +4,17 @@ This module provides the base class for emulators that learn the mapping from
 cosmological parameters to intermediate data products.
 """
 
-from typing import Annotated
-
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import numpy as np
 from pydantic import Field
 
 from c2i2o.core.emulator import EmulatorBase
-from c2i2o.core.grid import GridBase
+from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
 from c2i2o.core.intermediate import IntermediateSet
-
-from c2i2o.interfaces.ccl.cosmology import (
-    CCLCosmology,
-    CCLCosmologyCalculator,
-    CCLCosmologyVanillaLCDM,
-)
+from c2i2o.interfaces.ccl.cosmology import CCLCosmology, CCLCosmologyCalculator, CCLCosmologyVanillaLCDM
 
 CCLCosmologyUnion = Annotated[
     CCLCosmology | CCLCosmologyVanillaLCDM | CCLCosmologyCalculator,
@@ -120,15 +113,12 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         >>> emulator._get_grid_shape(grid)
         (11,)
         """
-        from c2i2o.core.grid import Grid1D, ProductGrid
-
         if isinstance(grid, Grid1D):
             return (grid.n_points,)
-        elif isinstance(grid, ProductGrid):
+        if isinstance(grid, ProductGrid):
             return tuple(grid.grids[name].n_points for name in grid.dimension_names)
-        else:
-            # Fallback for other grid types
-            return getattr(grid, "shape", ())
+        # Fallback for other grid types
+        return getattr(grid, "shape", ())
 
     def _validate_input_data(self, input_data: dict[str, np.ndarray]) -> None:
         """Validate input data format.
@@ -199,7 +189,7 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         self,
         input_data: dict[str, np.ndarray],
         output_data: list[IntermediateSet],
-        validation_split: float = 0.2,        
+        validation_split: float = 0.2,
         **kwargs: Any,
     ) -> None:
         """Train the emulator on cosmological parameter variations.
@@ -241,7 +231,6 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         >>> # output_data = [iset1, iset2, iset3]  # IntermediateSets
         >>> emulator.train(input_data, output_data, epochs=100)
         """
-        pass
 
     @abstractmethod
     def emulate(
@@ -289,7 +278,6 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         >>> len(result)
         1
         """
-        pass
 
     @abstractmethod
     def save(self, filepath: str | Path, **kwargs: Any) -> None:
@@ -320,7 +308,6 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         >>> # ... train emulator ...
         >>> emulator.save("my_emulator.pkl")
         """
-        pass
 
     @classmethod
     @abstractmethod
@@ -353,7 +340,6 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         >>> emulator = MyC2IEmulator.load("my_emulator.pkl")
         >>> result = emulator.emulate(test_data)
         """
-        pass
 
     class Config:
         """Pydantic configuration."""

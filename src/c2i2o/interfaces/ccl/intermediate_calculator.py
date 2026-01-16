@@ -24,11 +24,7 @@ from c2i2o.interfaces.ccl.computation import (
     LinearPowerComputationConfig,
     NonLinearPowerComputationConfig,
 )
-from c2i2o.interfaces.ccl.cosmology import (
-    CCLCosmology,
-    CCLCosmologyCalculator,
-    CCLCosmologyVanillaLCDM,
-)
+from c2i2o.interfaces.ccl.cosmology import CCLCosmology, CCLCosmologyCalculator, CCLCosmologyVanillaLCDM
 
 # Type aliases for unions
 CCLCosmologyUnion = Annotated[

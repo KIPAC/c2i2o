@@ -13,6 +13,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from c2i2o.core.intermediate import IntermediateSet
+from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
 from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
 
 
@@ -234,9 +235,7 @@ class C2ITrainEmulator(BaseModel):
                 "name": self.emulator.name,
                 "emulator_type": self.emulator.emulator_type,
                 "baseline_cosmology": self.emulator.baseline_cosmology.model_dump(),
-                "grids": {
-                    name: None for name in self.emulator.intermediate_names
-                },  # Grid structure, not actual grids
+                "grids": dict.fromkeys(self.emulator.intermediate_names),  # Grid structure, not actual grids
                 "hidden_layers": self.emulator.hidden_layers,
                 "learning_rate": self.emulator.learning_rate,
                 "activation": self.emulator.activation,
@@ -281,8 +280,6 @@ class C2ITrainEmulator(BaseModel):
         emulator_config = config_dict["emulator"]
 
         # Reconstruct baseline cosmology
-        from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
-
         baseline_cosmo_dict = emulator_config["baseline_cosmology"]
         cosmo_type = baseline_cosmo_dict.get("cosmology_type", "ccl_vanilla_lcdm")
 

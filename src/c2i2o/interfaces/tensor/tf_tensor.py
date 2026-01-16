@@ -1,15 +1,15 @@
 """TensorFlow tensor implementation for c2i2o."""
 
-import numpy as np
+import warnings
 from typing import Any, Literal, cast
+
+import numpy as np
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 from scipy.interpolate import RegularGridInterpolator
 
+from c2i2o.core.grid import Grid1D, ProductGrid
 from c2i2o.core.tensor import TensorBase
-from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
-
-import warnings
 
 warnings.filterwarnings(
     "ignore",
@@ -95,7 +95,7 @@ class TFTensor(TensorBase):
 
         # Determine expected shape based on grid type
         if isinstance(grid, Grid1D):
-            expected_shape = tuple([grid.n_points])
+            expected_shape = cast(tuple, (grid.n_points,))
         elif isinstance(grid, ProductGrid):
             expected_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
         else:
@@ -144,7 +144,7 @@ class TFTensor(TensorBase):
 
         # Determine expected shape
         if isinstance(self.grid, Grid1D):
-            expected_shape = tuple([self.grid.n_points])
+            expected_shape = cast(tuple, (self.grid.n_points,))
         elif isinstance(self.grid, ProductGrid):
             expected_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
         else:
@@ -184,10 +184,9 @@ class TFTensor(TensorBase):
         # Delegate to grid-specific methods
         if isinstance(self.grid, Grid1D):
             return self._evaluate_1d(points)
-        elif isinstance(self.grid, ProductGrid):
+        if isinstance(self.grid, ProductGrid):
             return self._evaluate_product(cast(dict[str, np.ndarray], points))
-        else:
-            raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
+        raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
 
     def _evaluate_1d(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
         """Evaluate Grid1D tensor using linear interpolation.

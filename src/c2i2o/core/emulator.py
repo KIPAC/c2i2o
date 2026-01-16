@@ -6,17 +6,16 @@ defining the interface for training, evaluation, and serialization.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
-import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
 # Type variables for input and output data
-InputType = TypeVar("InputType")
-OutputType = TypeVar("OutputType")
+InputType = TypeVar("InputType")  # pylint: disable=invalid-name
+OutputType = TypeVar("OutputType")  # pylint: disable=invalid-name
 
 
-class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
+class EmulatorBase[InputType, OutputType](BaseModel, ABC):  # pylint: disable=invalid-name
     """Abstract base class for emulators.
 
     This class defines the interface for all emulator implementations.
@@ -154,7 +153,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         ...     epochs=100,
         ... )
         """
-        pass
 
     @abstractmethod
     def emulate(self, input_data: InputType, **kwargs: Any) -> OutputType:
@@ -187,7 +185,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         >>> output.keys()
         dict_keys(['observable'])
         """
-        pass
 
     @abstractmethod
     def save(self, filepath: str | Path, **kwargs: Any) -> None:
@@ -220,7 +217,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         >>> emulator.save("models/my_emulator.pkl")
         >>> emulator.save("models/my_emulator.h5", compression="gzip")
         """
-        pass
 
     @classmethod
     @abstractmethod
@@ -251,7 +247,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         >>> emulator.is_trained
         True
         """
-        pass
 
     @abstractmethod
     def _validate_input_data(self, input_data: InputType) -> None:
@@ -278,7 +273,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         During training, this sets input_shape.
         During emulation, this validates against input_shape.
         """
-        pass
 
     @abstractmethod
     def _validate_output_data(self, output_data: OutputType) -> None:
@@ -305,7 +299,6 @@ class EmulatorBase(BaseModel, ABC, Generic[InputType, OutputType]):
         During training, this sets output_shape.
         Used to validate consistency with input_data.
         """
-        pass
 
     def _check_is_trained(self) -> None:
         """Check that emulator has been trained.

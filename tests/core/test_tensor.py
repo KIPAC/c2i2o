@@ -1,13 +1,14 @@
 """Tests for c2i2o.core.tensor module."""
 
+import warnings
+
 import numpy as np
 import pytest
 from pydantic import ValidationError
 
 from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
-from c2i2o.core.tensor import NumpyTensor, TensorBase, NumpyTensorSet
-
-import warnings
+from c2i2o.core.tensor import NumpyTensor, NumpyTensorSet, TensorBase
+from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
 warnings.filterwarnings(
     "ignore",
@@ -16,7 +17,6 @@ warnings.filterwarnings(
 )
 try:
     import tensorflow as tf
-    from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
     TF_AVAILABLE = True
 except ImportError:
@@ -621,12 +621,12 @@ class TestNumpyTensorSetEvaluationProductGrid:
         # Create values: f(x, y) = x + y for each sample
         x_vals = grid_x.build_grid()
         y_vals = grid_y.build_grid()
-        X, Y = np.meshgrid(x_vals, y_vals, indexing="ij")
+        x, y = np.meshgrid(x_vals, y_vals, indexing="ij")
 
         values = np.array(
             [
-                X + Y,
-                2 * (X + Y),
+                x + y,
+                2 * (x + y),
             ]
         )
 
@@ -649,13 +649,13 @@ class TestNumpyTensorSetEvaluationProductGrid:
         # Create values: f(x, y) = x * y for each sample
         x_vals = grid_x.build_grid()
         y_vals = grid_y.build_grid()
-        X, Y = np.meshgrid(x_vals, y_vals, indexing="ij")
+        x, y = np.meshgrid(x_vals, y_vals, indexing="ij")
 
         values = np.array(
             [
-                X * Y,
-                2 * X * Y,
-                3 * X * Y,
+                x * y,
+                2 * x * y,
+                3 * x * y,
             ]
         )
 
@@ -693,9 +693,9 @@ class TestNumpyTensorSetEvaluationProductGrid:
         # Create values: f(x, y) = x^2 + y^2
         x_vals = grid_x.build_grid()
         y_vals = grid_y.build_grid()
-        X, Y = np.meshgrid(x_vals, y_vals, indexing="ij")
+        x, y = np.meshgrid(x_vals, y_vals, indexing="ij")
 
-        values = np.array([X**2 + Y**2])
+        values = np.array([x**2 + y**2])
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=1, values=values)
 
@@ -766,21 +766,21 @@ class TestNumpyTensorSetGridsEqual:
         grid1 = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid2 = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
 
-        assert NumpyTensorSet._grids_equal(grid1, grid2)
+        assert NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
     def test_grids_equal_1d_different_points(self) -> None:
         """Test that 1D grids with different n_points are not equal."""
         grid1 = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid2 = Grid1D(min_value=0.0, max_value=1.0, n_points=21)
 
-        assert not NumpyTensorSet._grids_equal(grid1, grid2)
+        assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
     def test_grids_equal_1d_different_bounds(self) -> None:
         """Test that 1D grids with different bounds are not equal."""
         grid1 = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid2 = Grid1D(min_value=0.0, max_value=2.0, n_points=11)
 
-        assert not NumpyTensorSet._grids_equal(grid1, grid2)
+        assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
     def test_grids_equal_product_same(self) -> None:
         """Test that identical product grids are equal."""
@@ -792,7 +792,7 @@ class TestNumpyTensorSetGridsEqual:
         grid_y2 = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
         grid2 = ProductGrid(grids={"x": grid_x2, "y": grid_y2})
 
-        assert NumpyTensorSet._grids_equal(grid1, grid2)
+        assert NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
     def test_grids_equal_product_different_dimensions(self) -> None:
         """Test that product grids with different dimensions are not equal."""
@@ -803,7 +803,7 @@ class TestNumpyTensorSetGridsEqual:
         grid1 = ProductGrid(grids={"x": grid_x, "y": grid_y})
         grid2 = ProductGrid(grids={"x": grid_x, "z": grid_z})
 
-        assert not NumpyTensorSet._grids_equal(grid1, grid2)
+        assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
     def test_grids_equal_different_types(self) -> None:
         """Test that different grid types are not equal."""
@@ -812,7 +812,7 @@ class TestNumpyTensorSetGridsEqual:
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid2 = ProductGrid(grids={"x": grid_x})
 
-        assert not NumpyTensorSet._grids_equal(grid1, grid2)
+        assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
 
 class TestNumpyTensorSetRepr:
@@ -955,7 +955,7 @@ class TestNumpyTensorSetIntegration:
 
         # Verify they match
         assert len(reconstructed_tensors) == len(original_tensors)
-        for orig, recon in zip(original_tensors, reconstructed_tensors):
+        for orig, recon in zip(original_tensors, reconstructed_tensors, strict=False):
             np.testing.assert_array_equal(orig.values, recon.values)
 
     def test_evaluation_matches_individual_tensors(self) -> None:
@@ -1046,8 +1046,6 @@ class TestNumpyTensorSetDocstringExamples:
 
     def test_docstring_example_basic(self) -> None:
         """Test basic example from class docstring."""
-        from c2i2o.core.grid import Grid1D
-
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         # Values for 3 samples
         values = np.array(
@@ -1063,9 +1061,6 @@ class TestNumpyTensorSetDocstringExamples:
 
     def test_docstring_example_from_list(self) -> None:
         """Test from_tensor_list example from class docstring."""
-        from c2i2o.core.grid import Grid1D
-        from c2i2o.core.tensor import NumpyTensor
-
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         tensors = [
             NumpyTensor(grid=grid, values=np.linspace(0, 10, 11)),
@@ -1077,8 +1072,6 @@ class TestNumpyTensorSetDocstringExamples:
 
     def test_docstring_example_evaluate(self) -> None:
         """Test evaluate example from docstring."""
-        from c2i2o.core.grid import Grid1D
-
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         values = np.array(
             [
@@ -1095,8 +1088,6 @@ class TestNumpyTensorSetDocstringExamples:
 
     def test_docstring_example_get_sample(self) -> None:
         """Test get_sample example from docstring."""
-        from c2i2o.core.grid import Grid1D
-
         grid = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         values = np.array(
             [

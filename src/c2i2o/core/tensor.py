@@ -6,6 +6,7 @@ support for TensorFlow and PyTorch.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 import numpy as np
@@ -56,7 +57,7 @@ class TensorBase(BaseModel, ABC):
         """
 
     @abstractmethod
-    def to_numpy(self) -> np.ndarray:        
+    def to_numpy(self) -> np.ndarray:
         """Return underlying tensor values as a numpy array
 
         Returns
@@ -460,7 +461,7 @@ class NumpyTensorSet(TensorBase):
 
         # Get expected grid shape
         if isinstance(grid, Grid1D):
-            expected_grid_shape = tuple([grid.n_points])
+            expected_grid_shape = cast(tuple, (grid.n_points,))
         elif isinstance(grid, ProductGrid):
             expected_grid_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
         else:
@@ -498,7 +499,7 @@ class NumpyTensorSet(TensorBase):
     @classmethod
     def from_tensor_list(
         cls,
-        tensors: list[TensorBase],
+        tensors: Sequence[TensorBase],
     ) -> "NumpyTensorSet":
         """Construct a NumpyTensorSet from a list of tensors.
 
@@ -555,13 +556,6 @@ class NumpyTensorSet(TensorBase):
         for tensor in tensors:
             # Get numpy array from tensor
             tensor_values = tensor.to_numpy()
-            # FIXME remove if unneeded
-            #elif isinstance(tensor.values, np.ndarray):
-            #    tensor_values = tensor.values
-            #else:
-            #    # For TensorFlow or other backends
-            #    tensor_values = np.array(tensor.values)
-
             values_list.append(tensor_values)
 
         # Stack along new first dimension
@@ -587,7 +581,7 @@ class NumpyTensorSet(TensorBase):
             True if grids are equivalent.
         """
         # Simple implementation - can be enhanced
-        if type(grid1) != type(grid2):
+        if type(grid1) is not type(grid2):
             return False
 
         if isinstance(grid1, Grid1D) and isinstance(grid2, Grid1D):
@@ -596,7 +590,7 @@ class NumpyTensorSet(TensorBase):
                 and grid1.max_value == grid2.max_value
                 and grid1.n_points == grid2.n_points
             )
-        elif isinstance(grid1, ProductGrid) and isinstance(grid2, ProductGrid):
+        if isinstance(grid1, ProductGrid) and isinstance(grid2, ProductGrid):
             if set(grid1.dimension_names) != set(grid2.dimension_names):
                 return False
             return all(
@@ -639,7 +633,7 @@ class NumpyTensorSet(TensorBase):
         """
         # Determine expected shape
         if isinstance(self.grid, Grid1D):
-            expected_grid_shape = tuple([self.grid.n_points])
+            expected_grid_shape = cast(tuple, (self.grid.n_points,))
         elif isinstance(self.grid, ProductGrid):
             expected_grid_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
         else:
@@ -676,10 +670,9 @@ class NumpyTensorSet(TensorBase):
         # Delegate to grid-specific methods
         if isinstance(self.grid, Grid1D):
             return self._evaluate_1d(points)
-        elif isinstance(self.grid, ProductGrid):
+        if isinstance(self.grid, ProductGrid):
             return self._evaluate_product(cast(dict[str, np.ndarray], points))
-        else:
-            raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
+        raise NotImplementedError(f"Evaluation not implemented for grid type {type(self.grid).__name__}")
 
     def _evaluate_1d(self, points: dict[str, np.ndarray] | np.ndarray) -> np.ndarray:
         """Evaluate Grid1D tensor set using linear interpolation.

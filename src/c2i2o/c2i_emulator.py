@@ -12,7 +12,7 @@ import tables_io
 import yaml
 from pydantic import BaseModel, Field
 
-from c2i2o.core.intermediate import IntermediateSet, IntermediateMultiSet
+from c2i2o.core.intermediate import IntermediateMultiSet, IntermediateSet
 from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
 
 

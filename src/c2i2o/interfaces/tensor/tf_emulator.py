@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterable, Sized
 from pathlib import Path
-from typing import Any, Literal, Iterable, Sized, cast
+from typing import Any, Literal, cast
 
 import numpy as np
-from pydantic import Field
 import yaml
+from pydantic import Field
 
 from c2i2o.core.c2i_emulator import C2IEmulator
-from c2i2o.core.grid import GridBase, Grid1D, ProductGrid
+from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
 from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
 from c2i2o.interfaces.tensor.tf_tensor import TFTensor
-
-import warnings
 
 warnings.filterwarnings(
     "ignore",
@@ -197,13 +197,13 @@ class TFC2IEmulator(C2IEmulator):
             )
 
         # Stack input parameters into matrix (using sorted order from input_shape)
-        X = np.stack([input_data[name] for name in cast(Iterable, self.input_shape)], axis=1)
+        x = np.stack([input_data[name] for name in cast(Iterable, self.input_shape)], axis=1)
 
         # Normalize inputs
-        input_mean = np.mean(X, axis=0)
-        input_std = np.std(X, axis=0)
+        input_mean = np.mean(x, axis=0)
+        input_std = np.std(x, axis=0)
         input_std = np.where(input_std > 1e-10, input_std, 1.0)
-        X_normalized = (X - input_mean) / input_std
+        x_normalized = (x - input_mean) / input_std
 
         # Store normalizers
         self.normalizers = {
@@ -235,16 +235,16 @@ class TFC2IEmulator(C2IEmulator):
                 y_list.append(values)
 
             # Stack into matrix
-            Y = np.stack(y_list, axis=0)
+            y = np.stack(y_list, axis=0)
 
             # Store grid (replace None placeholder)
             self.grids[intermediate_name] = grid
 
             # Normalize outputs
-            output_mean = np.mean(Y, axis=0)
-            output_std = np.std(Y, axis=0)
+            output_mean = np.mean(y, axis=0)
+            output_std = np.std(y, axis=0)
             output_std = np.where(output_std > 1e-10, output_std, 1.0)
-            Y_normalized = (Y - output_mean) / output_std
+            y_normalized = (y - output_mean) / output_std
 
             # Store output normalizers
             self.normalizers[f"{intermediate_name}_mean"] = output_mean
@@ -252,7 +252,7 @@ class TFC2IEmulator(C2IEmulator):
 
             # Build model
             input_dim = len(cast(Sized, self.input_shape))
-            output_dim = Y.shape[1]
+            output_dim = y.shape[1]
             model = self._build_model(input_dim, output_dim)
 
             # Setup callbacks
@@ -267,8 +267,8 @@ class TFC2IEmulator(C2IEmulator):
 
             # Train model
             model.fit(
-                X_normalized,
-                Y_normalized,
+                x_normalized,
+                y_normalized,
                 epochs=epochs,
                 batch_size=batch_size,
                 validation_split=validation_split,
@@ -321,7 +321,7 @@ class TFC2IEmulator(C2IEmulator):
                 f"training parameters {set(cast(Iterable, self.input_shape))}"
             )
 
-        batch_size = kwargs.pop("batch_size", 32)
+        kwargs.pop("batch_size", 32)
 
         # Validate array dimensions
         n_samples = None
@@ -336,10 +336,10 @@ class TFC2IEmulator(C2IEmulator):
                 raise ValueError("All parameter arrays must have same length")
 
         # Stack and normalize inputs
-        X = np.stack([input_data[name] for name in cast(Iterable, self.input_shape)], axis=1)
-        
+        x = np.stack([input_data[name] for name in cast(Iterable, self.input_shape)], axis=1)
+
         assert self.normalizers
-        X_normalized = (X - self.normalizers["input_mean"]) / self.normalizers["input_std"]
+        x_normalized = (x - self.normalizers["input_mean"]) / self.normalizers["input_std"]
 
         # Predict for each intermediate
         result = []
@@ -354,7 +354,7 @@ class TFC2IEmulator(C2IEmulator):
                 grid = self.grids[intermediate_name]
 
                 # Predict
-                y_normalized = model.predict(X_normalized[i : i + 1], batch_size=1, verbose=0)
+                y_normalized = model.predict(x_normalized[i : i + 1], batch_size=1, verbose=0)
 
                 # Denormalize
                 y = (
@@ -481,8 +481,6 @@ class TFC2IEmulator(C2IEmulator):
             raise FileNotFoundError(f"Emulator directory not found: {filepath}")
 
         # Load configuration
-        import yaml
-
         with open(filepath / "config.yaml") as f:
             config_dict = yaml.safe_load(f)
 

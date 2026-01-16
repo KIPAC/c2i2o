@@ -7,15 +7,15 @@ power spectra, distance-redshift relations, and Hubble evolution.
 """
 
 from abc import ABC
-from collections.abc import Mapping
-from typing import Any, Generator, cast
+from collections.abc import Generator, Mapping
+from typing import Any, cast
 
 import numpy as np
 import tables_io
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from c2i2o.core.grid import GridBase
-from c2i2o.core.tensor import TensorBase, NumpyTensorSet
+from c2i2o.core.tensor import NumpyTensor, NumpyTensorSet, TensorBase
 
 
 class IntermediateBase(BaseModel, ABC):
@@ -717,8 +717,6 @@ class IntermediateMultiSet(IntermediateSet):
             sample_values = cast(NumpyTensorSet, intermediate.tensor).get_sample(index)
 
             # Import here to avoid circular dependency
-            from c2i2o.core.tensor import NumpyTensor
-
             # Create NumpyTensor for this sample
             sample_tensor = NumpyTensor(grid=grid, values=sample_values)
 

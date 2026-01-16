@@ -1,22 +1,19 @@
 """Tests for TensorFlow C2I emulator implementation."""
 
-import tempfile
+# Check if TensorFlow is available
+import warnings
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
 
-from typing import Iterable, Mapping, cast
-
-from c2i2o.core.grid import GridBase, Grid1D, ProductGrid
-from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-from c2i2o.interfaces.tensor.tf_tensor import TFTensor
-from c2i2o.core.tensor import NumpyTensor
 from c2i2o.core.cosmology import CosmologyBase
+from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
+from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
 from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
-
-# Check if TensorFlow is available
-import warnings
+from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
 warnings.filterwarnings(
     "ignore",
@@ -25,6 +22,7 @@ warnings.filterwarnings(
 )
 try:
     import tensorflow as tf
+
     from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
     from c2i2o.interfaces.tensor.tf_tensor import TFTensor
 
@@ -156,7 +154,7 @@ class TestTFC2IEmulatorTraining:
 
         assert emulator.training_samples == 10
         assert "P_lin" in emulator.models
-        assert set(cast(Iterable, emulator.input_shape)) == set(["Omega_c", "sigma8"])
+        assert set(cast(Iterable, emulator.input_shape)) == {"Omega_c", "sigma8"}
         assert emulator.is_trained
         assert emulator.grids["P_lin"] is not None  # Grid should be populated
 
@@ -224,7 +222,7 @@ class TestTFC2IEmulatorTraining:
 
         # Only 2 IntermediateSets for 3 input samples
         output_data = []
-        for i in range(2):
+        for _i in range(2):
             k_values = simple_grid.build_grid()
             p_values = 0.25 * k_values
             tensor = TFTensor(grid=simple_grid, values=tf.constant(p_values, dtype=tf.float32))
@@ -253,7 +251,7 @@ class TestTFC2IEmulatorTraining:
 
         # Create IntermediateSets with wrong intermediate name
         output_data = []
-        for i in range(2):
+        for _i in range(2):
             k_values = simple_grid.build_grid()
             p_values = 0.25 * k_values
             tensor = TFTensor(grid=simple_grid, values=tf.constant(p_values, dtype=tf.float32))
@@ -572,7 +570,7 @@ class TestTFC2IEmulatorProductGrid:
         result = emulator.emulate(eval_input)
 
         assert len(result) == 1
-        tensor = result[0].intermediates["P_kz"].tensor
+        tensor = cast(TFTensor, result[0].intermediates["P_kz"].tensor)
         assert tensor.shape == (10, 8)
         assert isinstance(tensor, TFTensor)
 
@@ -628,7 +626,7 @@ class TestTFC2IEmulatorSaveLoad:
         self,
         baseline_cosmology: CosmologyBase,
         tmp_path: Path,
-    ) ->  None:
+    ) -> None:
         """Test that loaded emulator can evaluate."""
         # Create and train emulator
         grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)

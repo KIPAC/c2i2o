@@ -1,71 +1,21 @@
 """Unit tests for C2I training emulator workflow."""
 
-import pytest
-import numpy as np
-import tensorflow as tf
 from pathlib import Path
 
+import numpy as np
+import pytest
+import tables_io
+import yaml
+
 from c2i2o.c2i_train_emulator import C2ITrainEmulator
+from c2i2o.core.intermediate import IntermediateSet
 from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
-from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
-from c2i2o.core.grid import Grid1D
-from c2i2o.core.intermediate import IntermediateBase, IntermediateSet
-from c2i2o.interfaces.tensor.tf_tensor import TFTensor
-
-
-@pytest.fixture
-def baseline_cosmology():
-    """Create a baseline cosmology for testing."""
-    return CCLCosmologyVanillaLCDM()
-
-
-@pytest.fixture
-def test_emulator(baseline_cosmology):
-    """Create a test emulator instance."""
-    return TFC2IEmulator(
-        name="test_emulator",
-        baseline_cosmology=baseline_cosmology,
-        grids={"P_lin": None, "chi": None},
-        hidden_layers=[32, 16],
-        learning_rate=0.001,
-    )
-
-
-@pytest.fixture
-def training_data():
-    """Create simple training data."""
-    grid = Grid1D(min_value=0.1, max_value=10.0, n_points=20)
-    n_samples = 10
-
-    # Input parameters
-    input_data = {
-        "Omega_c": np.linspace(0.20, 0.30, n_samples),
-        "sigma8": np.linspace(0.7, 0.9, n_samples),
-    }
-
-    # Output data
-    output_data = []
-    for i in range(n_samples):
-        k_values = grid.build_grid()
-        p_lin_values = input_data["Omega_c"][i] * input_data["sigma8"][i] * k_values
-        chi_values = input_data["Omega_c"][i] ** 2 * k_values
-
-        p_lin_tensor = TFTensor(grid=grid, values=tf.constant(p_lin_values, dtype=tf.float32))
-        chi_tensor = TFTensor(grid=grid, values=tf.constant(chi_values, dtype=tf.float32))
-
-        p_lin = IntermediateBase(name="P_lin", tensor=p_lin_tensor)
-        chi = IntermediateBase(name="chi", tensor=chi_tensor)
-
-        iset = IntermediateSet(intermediates={"P_lin": p_lin, "chi": chi})
-        output_data.append(iset)
-
-    return input_data, output_data
 
 
 class TestC2ITrainEmulatorInitialization:
     """Test C2ITrainEmulator initialization."""
 
-    def test_init_basic(self, test_emulator, tmp_path):
+    def test_init_basic(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test basic initialization."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -76,7 +26,7 @@ class TestC2ITrainEmulatorInitialization:
         assert trainer.output_dir == tmp_path / "results"
         assert not trainer.emulator.is_trained
 
-    def test_init_with_path_string(self, test_emulator):
+    def test_init_with_path_string(self, test_emulator: TFC2IEmulator) -> None:
         """Test initialization with string path."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -89,7 +39,9 @@ class TestC2ITrainEmulatorInitialization:
 class TestC2ITrainEmulatorTraining:
     """Test C2ITrainEmulator training functionality."""
 
-    def test_train_basic(self, test_emulator, training_data, tmp_path):
+    def test_train_basic(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test basic training."""
         input_data, output_data = training_data
 
@@ -109,7 +61,9 @@ class TestC2ITrainEmulatorTraining:
         metadata_file = tmp_path / "results" / "training_metadata.yaml"
         assert metadata_file.exists()
 
-    def test_train_creates_output_dir(self, test_emulator, training_data, tmp_path):
+    def test_train_creates_output_dir(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test that training creates output directory."""
         input_data, output_data = training_data
 
@@ -124,7 +78,9 @@ class TestC2ITrainEmulatorTraining:
         assert output_dir.exists()
         assert (output_dir / "training_metadata.yaml").exists()
 
-    def test_train_with_validation_split(self, test_emulator, training_data, tmp_path):
+    def test_train_with_validation_split(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test training with validation split."""
         input_data, output_data = training_data
 
@@ -137,7 +93,9 @@ class TestC2ITrainEmulatorTraining:
 
         assert trainer.emulator.is_trained
 
-    def test_train_with_early_stopping(self, test_emulator, training_data, tmp_path):
+    def test_train_with_early_stopping(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test training with early stopping."""
         input_data, output_data = training_data
 
@@ -157,7 +115,9 @@ class TestC2ITrainEmulatorTraining:
 
         assert trainer.emulator.is_trained
 
-    def test_train_metadata_content(self, test_emulator, training_data, tmp_path):
+    def test_train_metadata_content(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test training metadata content."""
         input_data, output_data = training_data
 
@@ -167,8 +127,6 @@ class TestC2ITrainEmulatorTraining:
         )
 
         trainer.train(input_data, output_data, epochs=10, batch_size=8, verbose=0)
-
-        import yaml
 
         with open(tmp_path / "results" / "training_metadata.yaml") as f:
             metadata = yaml.safe_load(f)
@@ -185,7 +143,7 @@ class TestC2ITrainEmulatorTraining:
 class TestC2ITrainEmulatorTrainFromFile:
     """Test C2ITrainEmulator train_from_file functionality."""
 
-    def test_train_from_file_missing_input(self, test_emulator, tmp_path):
+    def test_train_from_file_missing_input(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test that missing input file raises error."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -198,7 +156,7 @@ class TestC2ITrainEmulatorTrainFromFile:
                 output_filepath=tmp_path / "output.hdf5",
             )
 
-    def test_train_from_file_missing_output(self, test_emulator, tmp_path):
+    def test_train_from_file_missing_output(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test that missing output file raises error."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -206,8 +164,6 @@ class TestC2ITrainEmulatorTrainFromFile:
         )
 
         # Create dummy input file
-        import tables_io
-
         tables_io.write({"Omega_c": np.array([0.25])}, tmp_path / "input.hdf5")
 
         with pytest.raises(FileNotFoundError, match="Output file not found"):
@@ -220,7 +176,9 @@ class TestC2ITrainEmulatorTrainFromFile:
 class TestC2ITrainEmulatorSaveEmulator:
     """Test C2ITrainEmulator save_emulator functionality."""
 
-    def test_save_emulator_not_trained_raises_error(self, test_emulator, tmp_path):
+    def test_save_emulator_not_trained_raises_error(
+        self, test_emulator: TFC2IEmulator, tmp_path: Path
+    ) -> None:
         """Test that saving untrained emulator raises error."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -230,7 +188,9 @@ class TestC2ITrainEmulatorSaveEmulator:
         with pytest.raises(RuntimeError, match="not been trained"):
             trainer.save_emulator(tmp_path / "emulator")
 
-    def test_save_emulator_custom_path(self, test_emulator, training_data, tmp_path):
+    def test_save_emulator_custom_path(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test saving emulator to custom path."""
         input_data, output_data = training_data
 
@@ -248,7 +208,9 @@ class TestC2ITrainEmulatorSaveEmulator:
         assert (save_path / "config.yaml").exists()
         assert (save_path / "models").exists()
 
-    def test_save_emulator_default_path(self, test_emulator, training_data, tmp_path):
+    def test_save_emulator_default_path(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test saving emulator to default path."""
         input_data, output_data = training_data
 
@@ -269,7 +231,7 @@ class TestC2ITrainEmulatorSaveEmulator:
 class TestC2ITrainEmulatorYAML:
     """Test C2ITrainEmulator YAML serialization."""
 
-    def test_to_yaml(self, test_emulator, tmp_path):
+    def test_to_yaml(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test saving configuration to YAML."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -281,8 +243,6 @@ class TestC2ITrainEmulatorYAML:
 
         assert yaml_path.exists()
 
-        import yaml
-
         with open(yaml_path) as f:
             config = yaml.safe_load(f)
 
@@ -291,7 +251,7 @@ class TestC2ITrainEmulatorYAML:
         assert config["emulator"]["emulator_type"] == "tf_c2i"
         assert set(config["emulator"]["grids"].keys()) == {"P_lin", "chi"}
 
-    def test_to_yaml_creates_parent_dir(self, test_emulator, tmp_path):
+    def test_to_yaml_creates_parent_dir(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test that to_yaml creates parent directories."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -303,7 +263,7 @@ class TestC2ITrainEmulatorYAML:
 
         assert yaml_path.exists()
 
-    def test_from_yaml(self, test_emulator, tmp_path):
+    def test_from_yaml(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test loading configuration from YAML."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -320,7 +280,7 @@ class TestC2ITrainEmulatorYAML:
         assert loaded_trainer.emulator.intermediate_names == ["P_lin", "chi"]
         assert loaded_trainer.emulator.hidden_layers == [32, 16]
 
-    def test_from_yaml_missing_file_raises_error(self, tmp_path):
+    def test_from_yaml_missing_file_raises_error(self, tmp_path: Path) -> None:
         """Test that loading from missing file raises error."""
         with pytest.raises(FileNotFoundError, match="Configuration file not found"):
             C2ITrainEmulator.from_yaml(tmp_path / "nonexistent.yaml")
@@ -329,7 +289,7 @@ class TestC2ITrainEmulatorYAML:
 class TestC2ITrainEmulatorRepr:
     """Test C2ITrainEmulator string representation."""
 
-    def test_repr_untrained(self, test_emulator, tmp_path):
+    def test_repr_untrained(self, test_emulator: TFC2IEmulator, tmp_path: Path) -> None:
         """Test repr for untrained emulator."""
         trainer = C2ITrainEmulator(
             emulator=test_emulator,
@@ -343,7 +303,9 @@ class TestC2ITrainEmulatorRepr:
         assert "P_lin" in repr_str
         assert "chi" in repr_str
 
-    def test_repr_trained(self, test_emulator, training_data, tmp_path):
+    def test_repr_trained(
+        self, test_emulator: TFC2IEmulator, training_data: tuple[dict, list[IntermediateSet]], tmp_path: Path
+    ) -> None:
         """Test repr for trained emulator."""
         input_data, output_data = training_data
 
