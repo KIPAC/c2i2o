@@ -164,7 +164,7 @@ class NumpyTensor(TensorBase):
 
         # For ProductGrid, check that values shape matches grid dimensions
         elif isinstance(grid, ProductGrid):
-            expected_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
+            expected_shape = grid.shape
             if v.shape != expected_shape:
                 raise ValueError(f"Values shape {v.shape} must match grid shape {expected_shape}")
 
@@ -225,7 +225,7 @@ class NumpyTensor(TensorBase):
                     f"Values length ({len(values)}) must match grid n_points ({self.grid.n_points})"
                 )
         elif isinstance(self.grid, ProductGrid):
-            expected_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
+            expected_shape = self.grid.shape
             if values.shape != expected_shape:  # pragma: no cover
                 raise ValueError(f"Values shape {values.shape} must match grid shape {expected_shape}")
         else:  # pragma: no cover
@@ -362,7 +362,7 @@ class NumpyTensor(TensorBase):
                 raise KeyError(f"Dimension '{name}' missing from evaluation points")
 
         # Build grid for each dimension
-        grid_1d = [self.grid.grids[name].build_grid() for name in dim_names]
+        grid_1d = [grid_.build_grid() for grid_ in self.grid.grids]
 
         # Create interpolator
         interpolator = RegularGridInterpolator(
@@ -463,7 +463,7 @@ class NumpyTensorSet(TensorBase):
         if isinstance(grid, Grid1D):
             expected_grid_shape = cast(tuple, (grid.n_points,))
         elif isinstance(grid, ProductGrid):
-            expected_grid_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
+            expected_grid_shape = grid.shape
         else:
             expected_grid_shape = getattr(grid, "shape", ())
 
@@ -594,8 +594,8 @@ class NumpyTensorSet(TensorBase):
             if set(grid1.dimension_names) != set(grid2.dimension_names):
                 return False
             return all(
-                NumpyTensorSet._grids_equal(grid1.grids[name], grid2.grids[name])
-                for name in grid1.dimension_names
+                NumpyTensorSet._grids_equal(grid1_, grid2_)
+                for grid1_, grid2_ in zip(grid1.grids, grid2.grids, strict=False)
             )
 
         return False
@@ -635,7 +635,7 @@ class NumpyTensorSet(TensorBase):
         if isinstance(self.grid, Grid1D):
             expected_grid_shape = cast(tuple, (self.grid.n_points,))
         elif isinstance(self.grid, ProductGrid):
-            expected_grid_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
+            expected_grid_shape = self.grid.shape
         else:
             expected_grid_shape = getattr(self.grid, "shape", ())
 
@@ -727,7 +727,7 @@ class NumpyTensorSet(TensorBase):
                 raise KeyError(f"Dimension '{name}' missing from evaluation points")
 
         # Build grid for each dimension
-        grid_1d = [self.grid.grids[name].build_grid() for name in dim_names]
+        grid_1d = [grid_.build_grid() for grid_ in self.grid.grids]
 
         # Stack points in correct order
         eval_points = np.stack([points[name] for name in dim_names], axis=-1)

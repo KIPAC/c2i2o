@@ -20,7 +20,6 @@ class TestGrid1D:
         assert grid.max_value == 10.0
         assert grid.n_points == 11
         assert grid.spacing == "linear"
-        assert grid.endpoint is True
 
     def test_initialization_log(self) -> None:
         """Test initialization with logarithmic spacing."""
@@ -43,14 +42,6 @@ class TestGrid1D:
         assert points.shape == (3,)
         expected = np.array([1.0, 10.0, 100.0])
         np.testing.assert_allclose(points, expected)
-
-    def test_build_grid_no_endpoint(self) -> None:
-        """Test building grid without endpoint."""
-        grid = Grid1D(min_value=0.0, max_value=10.0, n_points=10, endpoint=False)
-        points = grid.build_grid()
-
-        assert points.shape == (10,)
-        assert points[-1] < 10.0
 
     def test_step_size_linear(self) -> None:
         """Test step size for linear grid."""
@@ -119,14 +110,15 @@ class TestProductGrid:
     def test_initialization(self) -> None:
         """Test basic initialization."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=10),
-                "y": Grid1D(min_value=0.0, max_value=2.0, n_points=20),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=10),
+                Grid1D(min_value=0.0, max_value=2.0, n_points=20),
+            ],
+            dimension_names=["x", "y"],
         )
         assert len(grid.grids) == 2
-        assert "x" in grid.grids
-        assert "y" in grid.grids
+        assert "x" in grid.dimension_names
+        assert "y" in grid.dimension_names
 
     def test_dimension_names(self, simple_product_grid: ProductGrid) -> None:
         """Test dimension_names property."""
@@ -154,10 +146,11 @@ class TestProductGrid:
     def test_build_grid_values(self) -> None:
         """Test build_grid produces correct values."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-                "y": Grid1D(min_value=0.0, max_value=2.0, n_points=2),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+                Grid1D(min_value=0.0, max_value=2.0, n_points=2),
+            ],
+            dimension_names=["x", "y"],
         )
         points = grid.build_grid()
 
@@ -194,10 +187,11 @@ class TestProductGrid:
     def test_build_grid_structured_values(self) -> None:
         """Test build_grid_structured produces correct meshgrid."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=2.0, n_points=3),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=2),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=2.0, n_points=3),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=2),
+            ],
+            dimension_names=["x", "y"],
         )
         structured = grid.build_grid_structured()
 
@@ -216,11 +210,25 @@ class TestProductGrid:
     def test_validation_empty_grids_raises_error(self) -> None:
         """Test empty grids dict raises error."""
         with pytest.raises(ValidationError, match="at least one grid"):
-            ProductGrid(grids={})
+            ProductGrid(grids=[], dimension_names=[])
+
+    def test_validation_mistmach_error(self) -> None:
+        """Test empty grids dict raises error."""
+        with pytest.raises(ValidationError):
+            ProductGrid(
+                grids=[
+                    Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+                    Grid1D(min_value=0.0, max_value=2.0, n_points=2),
+                ],
+                dimension_names=["x"],
+            )
 
     def test_single_dimension_product_grid(self) -> None:
         """Test product grid with single dimension."""
-        grid = ProductGrid(grids={"x": Grid1D(min_value=0.0, max_value=1.0, n_points=10)})
+        grid = ProductGrid(
+            grids=[Grid1D(min_value=0.0, max_value=1.0, n_points=10)],
+            dimension_names=["x"],
+        )
         assert grid.n_dimensions == 1
         assert grid.total_points == 10
 
@@ -230,11 +238,12 @@ class TestProductGrid:
     def test_three_dimensional_product_grid(self) -> None:
         """Test product grid with three dimensions."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=5),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=4),
-                "z": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=5),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=4),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+            ],
+            dimension_names=["x", "y", "z"],
         )
         assert grid.n_dimensions == 3
         assert grid.total_points == 60  # 5 * 4 * 3
@@ -245,10 +254,11 @@ class TestProductGrid:
     def test_mixed_spacing_types(self) -> None:
         """Test product grid with mixed linear/log spacing."""
         grid = ProductGrid(
-            grids={
-                "linear": Grid1D(min_value=0.0, max_value=10.0, n_points=11),
-                "log": Grid1D(min_value=1.0, max_value=100.0, n_points=3, spacing="log"),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=10.0, n_points=11),
+                Grid1D(min_value=1.0, max_value=100.0, n_points=3, spacing="log"),
+            ],
+            dimension_names=["linear", "log"],
         )
         assert grid.total_points == 33  # 11 * 3
 
@@ -292,24 +302,6 @@ class TestGrid1DCoverageGaps:
         with pytest.raises(ValueError, match="Unknown spacing type"):
             grid.build_grid()
 
-    def test_step_size_without_endpoint(self) -> None:
-        """Test step_size calculation when endpoint=False.
-
-        Covers line 140: else branch in step_size
-        """
-        grid = Grid1D(min_value=0.0, max_value=10.0, n_points=10, endpoint=False)
-        expected_step = 10.0 / 10  # (max - min) / n_points
-        assert grid.step_size == expected_step
-
-    def test_log_step_size_without_endpoint(self) -> None:
-        """Test log_step_size calculation when endpoint=False.
-
-        Covers line 166: else branch in log_step_size
-        """
-        grid = Grid1D(min_value=1.0, max_value=1000.0, n_points=3, spacing="log", endpoint=False)
-        expected_log_step = (np.log10(1000.0) - np.log10(1.0)) / 3
-        assert grid.log_step_size == expected_log_step
-
 
 class TestProductGridCoverageGaps:
     """Tests to cover missing lines in grid.py."""
@@ -319,7 +311,10 @@ class TestProductGridCoverageGaps:
 
         Covers line 192 and loop iteration
         """
-        grid = ProductGrid(grids={"x": Grid1D(min_value=0.0, max_value=1.0, n_points=5)})
+        grid = ProductGrid(
+            grids=[Grid1D(min_value=0.0, max_value=1.0, n_points=5)],
+            dimension_names=["x"],
+        )
 
         points_dict = grid.build_grid_dict()
 
@@ -389,10 +384,11 @@ class TestProductGridIO:
         """Test that grid values are exactly preserved."""
         # Create grid with specific values
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-                "y": Grid1D(min_value=0.0, max_value=2.0, n_points=2),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+                Grid1D(min_value=0.0, max_value=2.0, n_points=2),
+            ],
+            dimension_names=["x", "y"],
         )
         filename = tmp_path / "values.hdf5"
 
@@ -422,7 +418,10 @@ class TestProductGridIO:
 
     def test_save_single_dimension_grid(self, tmp_path: Path) -> None:
         """Test saving grid with single dimension."""
-        grid = ProductGrid(grids={"z": Grid1D(min_value=0.0, max_value=2.0, n_points=50)})
+        grid = ProductGrid(
+            grids=[Grid1D(min_value=0.0, max_value=2.0, n_points=50)],
+            dimension_names=["z"],
+        )
         filename = tmp_path / "single.hdf5"
 
         grid.save_grid(str(filename))
@@ -434,11 +433,12 @@ class TestProductGridIO:
     def test_save_three_dimensional_grid(self, tmp_path: Path) -> None:
         """Test saving grid with three dimensions."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=5),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=4),
-                "z": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=5),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=4),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+            ],
+            dimension_names=["x", "y", "z"],
         )
         filename = tmp_path / "3d.hdf5"
 
@@ -465,7 +465,10 @@ class TestGridDiscriminator:
         """Test that ProductGrid has grid_type field."""
         grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
         grid2 = Grid1D(min_value=0.0, max_value=5.0, n_points=5)
-        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+        product_grid = ProductGrid(
+            grids=[grid1, grid2],
+            dimension_names=["x", "y"],
+        )
 
         assert hasattr(product_grid, "grid_type")
         assert product_grid.grid_type == "product_grid"
@@ -483,7 +486,10 @@ class TestGridDiscriminator:
         """Test that ProductGrid serialization includes grid_type."""
         grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
         grid2 = Grid1D(min_value=0.0, max_value=5.0, n_points=5)
-        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+        product_grid = ProductGrid(
+            grids=[grid1, grid2],
+            dimension_names=["x", "y"],
+        )
 
         data = product_grid.model_dump()
 
@@ -498,7 +504,6 @@ class TestGridDiscriminator:
             max_value=10.0,
             n_points=100,
             spacing="linear",
-            endpoint=True,
         )
 
         assert grid.grid_type == "grid_1d"
@@ -510,33 +515,32 @@ class TestGridDiscriminator:
         """Test that ProductGrid can be deserialized from dict."""
         data = {
             "grid_type": "product_grid",
-            "grids": {
-                "x": {
+            "grids": [
+                {
                     "grid_type": "grid_1d",
                     "min_value": 0.0,
                     "max_value": 10.0,
                     "n_points": 10,
                     "spacing": "linear",
-                    "endpoint": True,
                 },
-                "y": {
+                {
                     "grid_type": "grid_1d",
                     "min_value": 0.0,
                     "max_value": 5.0,
                     "n_points": 5,
                     "spacing": "linear",
-                    "endpoint": True,
                 },
-            },
+            ],
+            "dimension_names": ["x", "y"],            
         }
 
         product_grid = ProductGrid(**data)  # type: ignore
 
         assert product_grid.grid_type == "product_grid"
-        assert "x" in product_grid.grids
-        assert "y" in product_grid.grids
-        assert product_grid.grids["x"].n_points == 10
-        assert product_grid.grids["y"].n_points == 5
+        assert "x" in product_grid.dimension_names
+        assert "y" in product_grid.dimension_names
+        assert product_grid["x"].n_points == 10
+        assert product_grid["y"].n_points == 5
 
     def test_grid1d_roundtrip_serialization(self) -> None:
         """Test Grid1D roundtrip serialization."""
@@ -545,7 +549,6 @@ class TestGridDiscriminator:
             max_value=10.0,
             n_points=50,
             spacing="log",
-            endpoint=False,
         )
 
         # Serialize
@@ -559,13 +562,15 @@ class TestGridDiscriminator:
         assert grid_loaded.max_value == grid.max_value
         assert grid_loaded.n_points == grid.n_points
         assert grid_loaded.spacing == grid.spacing
-        assert grid_loaded.endpoint == grid.endpoint
 
     def test_product_grid_roundtrip_serialization(self) -> None:
         """Test ProductGrid roundtrip serialization."""
         grid1 = Grid1D(min_value=0.0, max_value=10.0, n_points=10)
         grid2 = Grid1D(min_value=1.0, max_value=100.0, n_points=20, spacing="log")
-        product_grid = ProductGrid(grids={"x": grid1, "y": grid2})
+        product_grid = ProductGrid(
+            grids=[grid1, grid2],
+            dimension_names=["x", "y"],
+        )
 
         # Serialize
         data = product_grid.model_dump()
@@ -574,9 +579,9 @@ class TestGridDiscriminator:
         product_grid_loaded = ProductGrid(**data)
 
         assert product_grid_loaded.grid_type == product_grid.grid_type
-        assert set(product_grid_loaded.grids.keys()) == set(product_grid.grids.keys())
-        assert product_grid_loaded.grids["x"].n_points == grid1.n_points
-        assert product_grid_loaded.grids["y"].spacing == grid2.spacing
+        assert set(product_grid_loaded.dimension_names) == set(product_grid.dimension_names)
+        assert product_grid_loaded["x"].n_points == grid1.n_points
+        assert product_grid_loaded["y"].spacing == grid2.spacing
 
     def test_wrong_grid_type_rejected(self) -> None:
         """Test that invalid grid_type is rejected."""

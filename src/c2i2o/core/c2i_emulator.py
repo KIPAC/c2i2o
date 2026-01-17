@@ -116,7 +116,7 @@ class C2IEmulator(EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]):
         if isinstance(grid, Grid1D):
             return (grid.n_points,)
         if isinstance(grid, ProductGrid):
-            return tuple(grid.grids[name].n_points for name in grid.dimension_names)
+            return grid.shape
         # Fallback for other grid types
         return getattr(grid, "shape", ())
 

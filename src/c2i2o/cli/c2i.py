@@ -39,7 +39,7 @@ def c2i() -> None:
 
 @c2i.command()
 @config_file_arg()
-@input_file_opt
+@input_file_opt()
 @output_file_opt()
 @overwrite_opt()
 @verbose_opt()
@@ -118,19 +118,19 @@ def compute(
 
 
 @c2i.command("train-emulator")
-@config_file_arg
-@input_file_opt
-@output_file_opt
-@emulator_output_opt
-@epochs_opt
-@batch_size_opt
-@validation_split_opt
-@early_stopping_opt
-@patience_opt
-@verbose_opt
+@config_file_arg()
+@input_file_opt()
+@output_file_opt()
+@emulator_output_opt()
+@epochs_opt()
+@batch_size_opt()
+@validation_split_opt()
+@early_stopping_opt()
+@patience_opt()
+@verbose_opt()
 def train_emulator(
     config_file: Path,
-    input: Path,  # pylint: disable=redefined-builtin
+    input_file: Path,
     output: Path,
     emulator_output: Path,
     epochs: int,
@@ -164,7 +164,7 @@ def train_emulator(
 
     # Train from files
     if verbose:
-        click.echo(f"Loading training data from {input} and {output}...")
+        click.echo(f"Loading training data from {input_file} and {output}...")
         click.echo(f"Training emulator '{trainer.emulator.name}'...")
         click.echo(f"  Intermediates: {trainer.emulator.intermediate_names}")
         click.echo(f"  Architecture: {trainer.emulator.hidden_layers}")
@@ -174,7 +174,7 @@ def train_emulator(
             click.echo(f"  Early stopping: enabled (patience={patience})")
 
     trainer.train_from_file(
-        input_filepath=input,
+        input_filepath=input_file,
         output_filepath=output,
         epochs=epochs,
         batch_size=batch_size,
@@ -197,15 +197,15 @@ def train_emulator(
 
 
 @c2i.command("emulate")
-@emulator_path_opt
-@input_file_opt
-@output_file_opt
-@batch_size_opt
-@overwrite_opt
-@verbose_opt
+@emulator_path_opt()
+@input_file_opt()
+@output_file_opt()
+@batch_size_opt()
+@overwrite_opt()
+@verbose_opt()
 def emulate(
     emulator_path: Path,
-    input: Path,  # pylint: disable=redefined-builtinxgot
+    input_file: Path,
     output: Path,
     batch_size: int,
     overwrite: bool,
@@ -249,11 +249,11 @@ def emulate(
 
     # Emulate from file
     if verbose:
-        click.echo(f"Loading parameters from {input}...")
+        click.echo(f"Loading parameters from {input_file}...")
         click.echo("Generating predictions...")
 
     results = emulator_impl.emulate_from_file(
-        input_filepath=input,
+        input_filepath=input_file,
         output_filepath=output,
         batch_size=batch_size,
     )

@@ -97,7 +97,7 @@ class TFTensor(TensorBase):
         if isinstance(grid, Grid1D):
             expected_shape = cast(tuple, (grid.n_points,))
         elif isinstance(grid, ProductGrid):
-            expected_shape = tuple(grid.grids[name].n_points for name in grid.dimension_names)
+            expected_shape = grid.shape
         else:
             # Fallback for other grid types
             expected_shape = cast(tuple[int], getattr(grid, "shape", None))
@@ -146,7 +146,7 @@ class TFTensor(TensorBase):
         if isinstance(self.grid, Grid1D):
             expected_shape = cast(tuple, (self.grid.n_points,))
         elif isinstance(self.grid, ProductGrid):
-            expected_shape = tuple(self.grid.grids[name].n_points for name in self.grid.dimension_names)
+            expected_shape = self.grid.shape
         else:
             expected_shape = cast(tuple, getattr(self.grid, "shape", None))
 
@@ -249,7 +249,7 @@ class TFTensor(TensorBase):
                 raise KeyError(f"Dimension '{name}' missing from evaluation points")
 
         # Build grid for each dimension
-        grid_1d = [self.grid.grids[name].build_grid() for name in dim_names]
+        grid_1d = [grid_.build_grid() for grid_ in self.grid.grids]
 
         # Convert TensorFlow tensor to NumPy for scipy interpolation
         values_np = self.values.numpy()

@@ -86,7 +86,7 @@ class TestComovingDistanceComputationConfig:
         """Test that ProductGrid is rejected."""
         a_grid = Grid1D(min_value=0.1, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             ComovingDistanceComputationConfig(
@@ -224,7 +224,7 @@ class TestHubbleEvolutionComputationConfig:
         """Test that ProductGrid is rejected."""
         a_grid = Grid1D(min_value=0.1, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             HubbleEvolutionComputationConfig(
@@ -266,7 +266,7 @@ class TestLinearPowerComputationConfig:
         """Test creating a basic linear power configuration."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = LinearPowerComputationConfig(
             computation_type="linear_power",
@@ -284,7 +284,7 @@ class TestLinearPowerComputationConfig:
         """Test that Literal fields have proper defaults."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
@@ -298,7 +298,7 @@ class TestLinearPowerComputationConfig:
         """Test that valid CCL cosmology types are accepted."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = LinearPowerComputationConfig(
@@ -311,7 +311,7 @@ class TestLinearPowerComputationConfig:
         """Test that invalid cosmology types are rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="CCL cosmology type"):
             LinearPowerComputationConfig(
@@ -332,7 +332,7 @@ class TestLinearPowerComputationConfig:
     def test_missing_a_grid(self) -> None:
         """Test that missing 'a' grid is rejected."""
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"k": k_grid})
+        product_grid = ProductGrid(grids=[k_grid], dimension_names=["k"])
 
         with pytest.raises(ValidationError, match="must contain 'a'"):
             LinearPowerComputationConfig(
@@ -343,7 +343,7 @@ class TestLinearPowerComputationConfig:
     def test_missing_k_grid(self) -> None:
         """Test that missing 'k' grid is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
-        product_grid = ProductGrid(grids={"a": a_grid})
+        product_grid = ProductGrid(grids=[a_grid], dimension_names=["a"])
 
         with pytest.raises(ValidationError, match="must contain 'k'"):
             LinearPowerComputationConfig(
@@ -355,7 +355,7 @@ class TestLinearPowerComputationConfig:
         """Test that a_grid with min_value = 0 is rejected."""
         a_grid = Grid1D(min_value=0.0, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             LinearPowerComputationConfig(
@@ -367,7 +367,7 @@ class TestLinearPowerComputationConfig:
         """Test that a_grid with negative min_value is rejected."""
         a_grid = Grid1D(min_value=-0.1, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             LinearPowerComputationConfig(
@@ -379,7 +379,7 @@ class TestLinearPowerComputationConfig:
         """Test that a_grid with max_value > 1 is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.5, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="a_grid max_value must be <= 1.0"):
             LinearPowerComputationConfig(
@@ -391,19 +391,19 @@ class TestLinearPowerComputationConfig:
         """Test that a_grid with max_value = 1.0 is accepted."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
-        assert cast(ProductGrid, config.eval_grid).grids["a"].max_value == 1.0
+        assert cast(ProductGrid, config.eval_grid)["a"].max_value == 1.0
 
     def test_k_grid_linear_spacing_rejected(self) -> None:
         """Test that k_grid with linear spacing is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="linear")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="must have logarithmic spacing"):
             LinearPowerComputationConfig(
@@ -415,13 +415,13 @@ class TestLinearPowerComputationConfig:
         """Test that k_grid with logarithmic spacing is accepted."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
-        assert cast(ProductGrid, config.eval_grid).grids["k"].spacing == "log"
+        assert cast(ProductGrid, config.eval_grid)["k"].spacing == "log"
 
     def test_valid_ranges(self) -> None:
         """Test various valid grid ranges."""
@@ -441,7 +441,7 @@ class TestLinearPowerComputationConfig:
         ]
 
         for a_grid, k_grid in valid_configs:
-            product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+            product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
             config = LinearPowerComputationConfig(
                 cosmology_type="ccl_vanilla_lcdm",
                 eval_grid=product_grid,
@@ -453,14 +453,14 @@ class TestLinearPowerComputationConfig:
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
         extra_grid = Grid1D(min_value=0.0, max_value=1.0, n_points=20)
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid, "extra": extra_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid, extra_grid], dimension_names=["a", "k", "extra"])
 
         # Should not raise - extra grids are fine
         config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
         )
-        assert "extra" in cast(ProductGrid, config.eval_grid).grids
+        assert "extra" in cast(ProductGrid, config.eval_grid).dimension_names
 
 
 class TestNonLinearPowerComputationConfig:
@@ -470,7 +470,7 @@ class TestNonLinearPowerComputationConfig:
         """Test creating a basic nonlinear power configuration."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = NonLinearPowerComputationConfig(
             computation_type="nonlin_power",
@@ -488,7 +488,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that Literal fields have proper defaults."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = NonLinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
@@ -502,7 +502,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that valid CCL cosmology types are accepted."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
             config = NonLinearPowerComputationConfig(
@@ -515,7 +515,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that invalid cosmology types are rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="CCL cosmology type"):
             NonLinearPowerComputationConfig(
@@ -536,7 +536,7 @@ class TestNonLinearPowerComputationConfig:
     def test_missing_a_grid(self) -> None:
         """Test that missing 'a' grid is rejected."""
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"k": k_grid})
+        product_grid = ProductGrid(grids=[k_grid], dimension_names=["k"])
 
         with pytest.raises(ValidationError, match="must contain 'a'"):
             NonLinearPowerComputationConfig(
@@ -547,7 +547,7 @@ class TestNonLinearPowerComputationConfig:
     def test_missing_k_grid(self) -> None:
         """Test that missing 'k' grid is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
-        product_grid = ProductGrid(grids={"a": a_grid})
+        product_grid = ProductGrid(grids=[a_grid], dimension_names=["a"])
 
         with pytest.raises(ValidationError, match="must contain 'k'"):
             NonLinearPowerComputationConfig(
@@ -561,7 +561,7 @@ class TestNonLinearPowerComputationConfig:
 
         # Valid
         a_grid_valid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
-        product_grid_valid = ProductGrid(grids={"a": a_grid_valid, "k": k_grid})
+        product_grid_valid = ProductGrid(grids=[a_grid_valid, k_grid], dimension_names=["a", "k"])
         config = NonLinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid_valid,
@@ -570,7 +570,7 @@ class TestNonLinearPowerComputationConfig:
 
         # Invalid: min = 0
         a_grid_zero = Grid1D(min_value=0.0, max_value=1.0, n_points=10)
-        product_grid_zero = ProductGrid(grids={"a": a_grid_zero, "k": k_grid})
+        product_grid_zero = ProductGrid(grids=[a_grid_zero, k_grid], dimension_names=["a", "k"])
         with pytest.raises(ValidationError, match="a_grid min_value must be > 0"):
             NonLinearPowerComputationConfig(
                 cosmology_type="ccl_vanilla_lcdm",
@@ -579,7 +579,7 @@ class TestNonLinearPowerComputationConfig:
 
         # Invalid: max > 1
         a_grid_above = Grid1D(min_value=0.5, max_value=1.5, n_points=10)
-        product_grid_above = ProductGrid(grids={"a": a_grid_above, "k": k_grid})
+        product_grid_above = ProductGrid(grids=[a_grid_above, k_grid], dimension_names=["a", "k"])
         with pytest.raises(ValidationError, match="a_grid max_value must be <= 1.0"):
             NonLinearPowerComputationConfig(
                 cosmology_type="ccl_vanilla_lcdm",
@@ -592,16 +592,16 @@ class TestNonLinearPowerComputationConfig:
 
         # Valid: logarithmic
         k_grid_log = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid_log = ProductGrid(grids={"a": a_grid, "k": k_grid_log})
+        product_grid_log = ProductGrid(grids=[a_grid, k_grid_log], dimension_names=["a", "k"])
         config = NonLinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid_log,
         )
-        assert cast(ProductGrid, config.eval_grid).grids["k"].spacing == "log"
+        assert cast(ProductGrid, config.eval_grid)["k"].spacing == "log"
 
         # Invalid: linear
         k_grid_linear = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="linear")
-        product_grid_linear = ProductGrid(grids={"a": a_grid, "k": k_grid_linear})
+        product_grid_linear = ProductGrid(grids=[a_grid, k_grid_linear], dimension_names=["a", "k"])
         with pytest.raises(ValidationError, match="must have logarithmic spacing"):
             NonLinearPowerComputationConfig(
                 cosmology_type="ccl_vanilla_lcdm",
@@ -612,7 +612,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that NonLinear and Linear power configs have same grid validation."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         linear_config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
@@ -631,7 +631,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that wrong computation_type is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError):
             NonLinearPowerComputationConfig(
@@ -644,7 +644,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that wrong function name is rejected."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError):
             NonLinearPowerComputationConfig(
@@ -657,7 +657,7 @@ class TestNonLinearPowerComputationConfig:
         """Test that extra fields are forbidden."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             NonLinearPowerComputationConfig(
@@ -674,7 +674,7 @@ class TestComputationConfigComparison:
         """Test that all computation configs have unique computation_type values."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         comoving = ComovingDistanceComputationConfig(
@@ -710,7 +710,7 @@ class TestComputationConfigComparison:
         """Test that configs have appropriate function names."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         comoving = ComovingDistanceComputationConfig(
@@ -742,7 +742,7 @@ class TestComputationConfigComparison:
         """Test that 1D configs reject ProductGrid."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         with pytest.raises(ValidationError, match="must be Grid1D"):
             ComovingDistanceComputationConfig(
@@ -776,7 +776,7 @@ class TestComputationConfigComparison:
         """Test that all configs accept ccl_vanilla_lcdm and ccl and ccl_calculator."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
         grid_1d = Grid1D(min_value=0.1, max_value=1.0, n_points=100)
 
         for cosmo_type in ["ccl_vanilla_lcdm", "ccl", "ccl_calculator"]:
@@ -810,7 +810,7 @@ class TestComputationConfigComparison:
         """Test that configs can be serialized and deserialized."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         config = LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
@@ -827,8 +827,8 @@ class TestComputationConfigComparison:
         assert config_loaded.function == config.function
         assert config_loaded.cosmology_type == config.cosmology_type
         assert (
-            cast(ProductGrid, config_loaded.eval_grid).grids.keys()
-            == cast(ProductGrid, config.eval_grid).grids.keys()
+            cast(ProductGrid, config_loaded.eval_grid).dimension_names
+            == cast(ProductGrid, config.eval_grid).dimension_names
         )
 
     def test_eval_kwargs_field_exists(self) -> None:

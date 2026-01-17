@@ -54,7 +54,7 @@ class TestC2ICalculator:
         """Create a linear power spectrum computation config."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=5)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=20, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
         return LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,

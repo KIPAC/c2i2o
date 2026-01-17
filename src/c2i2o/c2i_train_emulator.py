@@ -12,7 +12,7 @@ import tables_io
 import yaml
 from pydantic import BaseModel, Field
 
-from c2i2o.core.intermediate import IntermediateSet
+from c2i2o.core.intermediate import IntermediateMultiSet, IntermediateSet
 from c2i2o.interfaces.ccl.cosmology import CCLCosmologyVanillaLCDM
 from c2i2o.interfaces.tensor.tf_emulator import TFC2IEmulator
 
@@ -175,7 +175,9 @@ class C2ITrainEmulator(BaseModel):
         if not output_filepath.exists():
             raise FileNotFoundError(f"Output file not found: {output_filepath}")
 
-        output_data = tables_io.read(output_filepath)
+        # output_data = tables_io.read(output_filepath)
+        intermediate_data_values = IntermediateMultiSet.load_values(str(output_filepath))
+        output_data = list(intermediate_data_values.values())
 
         # Train
         self.train(input_data, output_data, **kwargs)

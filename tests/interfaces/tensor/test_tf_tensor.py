@@ -64,7 +64,7 @@ class TestTFTensorInitialization:
         """Test initialization with ProductGrid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         values = tf.ones([5, 7])
         tensor = TFTensor(grid=grid, values=values)
@@ -146,7 +146,7 @@ class TestTFTensorProperties:
         """Test ndim for 2D tensor."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
         tensor = TFTensor(grid=grid, values=tf.zeros([5, 7]))
 
         assert tensor.ndim == 2
@@ -235,7 +235,7 @@ class TestTFTensorEvaluationProductGrid:
         """Test evaluation on 2D product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=2.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=4.0, n_points=5)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x + y
         x_vals = grid_x.build_grid()
@@ -256,7 +256,7 @@ class TestTFTensorEvaluationProductGrid:
         """Test interpolation on product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x * y
         x_vals = grid_x.build_grid()
@@ -277,7 +277,7 @@ class TestTFTensorEvaluationProductGrid:
         """Test that missing dimension raises KeyError."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
         values = tf.ones([3, 3])
 
         tensor = TFTensor(grid=grid, values=values)
@@ -292,7 +292,7 @@ class TestTFTensorEvaluationProductGrid:
         """Test vectorized evaluation on product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x^2 + y^2
         x_vals = grid_x.build_grid()

@@ -9,7 +9,7 @@ from typing import Literal, cast
 
 import numpy as np
 import tables_io
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core.core_schema import ValidationInfo
 
 
@@ -62,8 +62,6 @@ class Grid1D(GridBase):
         Number of grid points.
     spacing
         Type of spacing: "linear" or "log" (logarithmic).
-    endpoint
-        Whether to include the max_value endpoint (default: True).
 
     Examples
     --------
@@ -82,7 +80,6 @@ class Grid1D(GridBase):
     spacing: Literal["linear", "log"] = Field(
         default="linear", description="Grid spacing type: 'linear' or 'log'"
     )
-    endpoint: bool = Field(default=True, description="Include endpoint in grid")
 
     @field_validator("max_value")
     @classmethod
@@ -123,13 +120,12 @@ class Grid1D(GridBase):
         True
         """
         if self.spacing == "linear":
-            return np.linspace(self.min_value, self.max_value, self.n_points, endpoint=self.endpoint)
+            return np.linspace(self.min_value, self.max_value, self.n_points)
         if self.spacing == "log":
             return np.logspace(
                 np.log10(self.min_value),
                 np.log10(self.max_value),
                 self.n_points,
-                endpoint=self.endpoint,
             )
         raise ValueError(f"Unknown spacing type: {self.spacing}")
 
@@ -154,9 +150,7 @@ class Grid1D(GridBase):
         """
         if self.spacing != "linear":
             raise ValueError("step_size is only defined for linear spacing")
-        if self.endpoint:
-            return (self.max_value - self.min_value) / (self.n_points - 1)
-        return (self.max_value - self.min_value) / self.n_points
+        return (self.max_value - self.min_value) / (self.n_points - 1)
 
     @property
     def log_step_size(self) -> float:
@@ -179,9 +173,7 @@ class Grid1D(GridBase):
         """
         if self.spacing != "log":
             raise ValueError("log_step_size is only defined for log spacing")
-        if self.endpoint:
-            return cast(float, (np.log10(self.max_value) - np.log10(self.min_value)) / (self.n_points - 1))
-        return cast(float, (np.log10(self.max_value) - np.log10(self.min_value)) / self.n_points)
+        return cast(float, (np.log10(self.max_value) - np.log10(self.min_value)) / (self.n_points - 1))
 
     def __len__(self) -> int:
         """Return the number of grid points.
@@ -218,25 +210,53 @@ class ProductGrid(GridBase):
     """
 
     grid_type: Literal["product_grid"] = Field(default="product_grid")
-    grids: dict[str, Grid1D] = Field(..., description="Dictionary of dimension names to Grid1D objects")
+    grids: list[Grid1D] = Field(..., description="List of Grid1D objects")
+    dimension_names: list[str] = Field(..., description="Names of axes")
 
     @field_validator("grids")
     @classmethod
-    def validate_non_empty(cls, v: dict[str, Grid1D]) -> dict[str, Grid1D]:
-        """Validate that grids dictionary is not empty."""
+    def validate_grids_not_empty(cls, v: list[Grid1D]) -> list[Grid1D]:
+        """Validate that grids list is not empty."""
         if not v:
             raise ValueError("ProductGrid must contain at least one grid")
         return v
 
+    @field_validator("dimension_names")
+    @classmethod
+    def validate_dimension_names_not_emtpy(cls, v: list[str]) -> list[str]:
+        """Validate that dimension_names list is not empty."""
+        if not v:
+            raise ValueError("ProductGrid must contain at least one dimension name")
+        return v
+
+    @model_validator(mode="after")
+    def validate_grids_matches_dimension_names(self) -> "ProductGrid":
+        """Validate that grids matches dimension_names.
+
+        Returns
+        -------
+            Validated instance.
+
+        Raises
+        ------
+        ValueError
+            If n_samples doesn't match values.shape[0].
+        """
+        if len(self.grids) != len(self.dimension_names):
+            raise ValueError(
+                f"n_grids {len(self.grids)} doesn't match n_dimension_names {len(self.dimension_names)}"
+            )
+        return self
+
     @property
-    def dimension_names(self) -> list[str]:
-        """Get list of dimension names in sorted order.
+    def shape(self) -> tuple:
+        """Get the shape of the grid.
 
         Returns
         -------
             Sorted list of dimension names.
         """
-        return sorted(self.grids.keys())
+        return tuple(grid_.n_points for grid_ in self.grids)
 
     @property
     def n_dimensions(self) -> int:
@@ -256,7 +276,7 @@ class ProductGrid(GridBase):
         -------
             Dictionary mapping dimension names to number of points.
         """
-        return {name: grid.n_points for name, grid in self.grids.items()}
+        return {name: grid.n_points for name, grid in zip(self.dimension_names, self.grids, strict=False)}
 
     @property
     def total_points(self) -> int:
@@ -278,7 +298,7 @@ class ProductGrid(GridBase):
         200
         """
         total = 1
-        for grid in self.grids.values():
+        for grid in self.grids:
             total *= grid.n_points
         return total
 
@@ -305,7 +325,7 @@ class ProductGrid(GridBase):
         (6, 2)
         """
         # Build 1D grids in sorted order
-        grids_1d = [self.grids[name].build_grid() for name in self.dimension_names]
+        grids_1d = [grid_.build_grid() for grid_ in self.grids]
 
         # Create meshgrid
         mesh = np.meshgrid(*grids_1d, indexing="ij")
@@ -362,7 +382,7 @@ class ProductGrid(GridBase):
         (3, 2)
         """
         # Build 1D grids in sorted order
-        grids_1d = [self.grids[name].build_grid() for name in self.dimension_names]
+        grids_1d = [grid_.build_grid() for grid_ in self.grids]
 
         # Create meshgrid
         mesh = np.meshgrid(*grids_1d, indexing="ij")
@@ -373,6 +393,31 @@ class ProductGrid(GridBase):
             grid_dict[name] = mesh[i]
 
         return grid_dict
+
+    def __getitem__(self, key: str | int) -> Grid1D:
+        """Return a particular grid by name or index
+
+        Parameters
+        ----------
+        key
+            Grid key.  See Notes.
+
+        Returns
+        -------
+        The requested Grid1D
+
+        Notes
+        -----
+        If key is an int this will return self.grids[key].
+
+        If key is a str this will return
+        self.grids[self.dimension_names.index(key)]
+        """
+        if isinstance(key, int):
+            return self.grids[key]
+        if isinstance(key, str):
+            return self.grids[self.dimension_names.index(key)]
+        raise TypeError(f"ProductGrid.__getitem_ requires an int or str, not {type(key)}.")
 
     def __len__(self) -> int:
         """Return the total number of grid points.

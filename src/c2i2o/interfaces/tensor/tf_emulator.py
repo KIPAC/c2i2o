@@ -504,10 +504,12 @@ class TFC2IEmulator(C2IEmulator):
                 grid: GridBase = Grid1D(**grid_dict)
             elif grid_type == "product_grid":
                 # Reconstruct sub-grids
-                sub_grids = {}
+                sub_grids: list[Grid1D] = []
+                dimension_names: list[str] = []
                 for name, sub_grid_dict in grid_dict["grids"].items():
-                    sub_grids[name] = Grid1D(**sub_grid_dict)
-                grid = ProductGrid(grids=sub_grids)
+                    sub_grids.append(Grid1D(**sub_grid_dict))
+                    dimension_names.append(name)
+                grid = ProductGrid(grids=sub_grids, dimension_names=dimension_names)
             else:
                 raise ValueError(f"Unknown grid type: {grid_type}")
 

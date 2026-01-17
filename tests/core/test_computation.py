@@ -279,7 +279,10 @@ class TestComputationConfigUseCases:
         z_grid = Grid1D(min_value=0.0, max_value=2.0, n_points=20)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=50, spacing="log")
 
-        product_grid = ProductGrid(grids={"z": z_grid, "k": k_grid})
+        product_grid = ProductGrid(
+            grids=[z_grid, k_grid],
+            dimension_names=["z", "k"],
+        )
 
         config = ComputationConfig(
             computation_type="matter_power_spectrum",

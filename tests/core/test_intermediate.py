@@ -875,7 +875,10 @@ class TestIntermediateMultiSetProductGrid:
         """Test multi-set with product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(
+            grids=[grid_x, grid_y],
+            dimension_names=["x", "y"],
+        )
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.random.randn(3, 5, 7))
         p_kz = IntermediateBase(name="P_kz", tensor=tensor_set)
@@ -889,7 +892,10 @@ class TestIntermediateMultiSetProductGrid:
         """Test getitem with product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(
+            grids=[grid_x, grid_y],
+            dimension_names=["x", "y"],
+        )
 
         iset_list = []
         for i in range(2):
@@ -1125,7 +1131,10 @@ class TestIntermediateMultiSetIntegration:
         # 2D grid for P_kz
         grid_k = Grid1D(min_value=0.01, max_value=10.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
-        grid_2d = ProductGrid(grids={"k": grid_k, "z": grid_z})
+        grid_2d = ProductGrid(
+            grids=[grid_k, grid_z],
+            dimension_names=["k", "z"],
+        )
 
         # Create intermediate sets
         iset_list = []

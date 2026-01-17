@@ -69,10 +69,11 @@ def log_grid_1d() -> Grid1D:
 def simple_product_grid() -> ProductGrid:
     """Simple 2D product grid for testing."""
     return ProductGrid(
-        grids={
-            "x": Grid1D(min_value=0.0, max_value=1.0, n_points=10),
-            "y": Grid1D(min_value=0.0, max_value=2.0, n_points=20),
-        }
+        grids=[
+            Grid1D(min_value=0.0, max_value=1.0, n_points=10),
+            Grid1D(min_value=0.0, max_value=2.0, n_points=20),
+        ],
+        dimension_names=["x", "y"],
     )
 
 

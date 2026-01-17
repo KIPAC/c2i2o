@@ -257,8 +257,8 @@ class CCLIntermediateCalculator(BaseModel):
             if isinstance(computation_config.eval_grid, ProductGrid):
                 # 2D computation (power spectrum)
                 # Get scale factor and wavenumber grids
-                a_grid = computation_config.eval_grid.grids["a"].build_grid()
-                k_grid = computation_config.eval_grid.grids["k"].build_grid()
+                a_grid = computation_config.eval_grid["a"].build_grid()
+                k_grid = computation_config.eval_grid["k"].build_grid()
 
                 # CCL power spectrum functions: P(k, a, cosmo)
                 # Evaluate for each scale factor

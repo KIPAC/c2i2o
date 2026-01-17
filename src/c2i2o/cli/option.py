@@ -124,7 +124,7 @@ input_file_arg = PartialArgument(
 # Standard Options
 # ============================================================================
 
-input_file_opt = click.option(
+input_file_opt = PartialOption(
     "--input",
     "-i",
     "input_file",

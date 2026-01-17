@@ -313,14 +313,14 @@ class LinearPowerComputationConfig(ComputationConfig):
             raise ValueError(f"eval_grid must be ProductGrid for linear power, got {type(v).__name__}")
 
         # Check for required grids
-        if "a" not in v.grids:
+        if "a" not in v.dimension_names:
             raise ValueError("eval_grid must contain 'a' (scale factor) grid")
 
-        if "k" not in v.grids:
+        if "k" not in v.dimension_names:
             raise ValueError("eval_grid must contain 'k' (wavenumber) grid")
 
         # Validate a_grid (scale factor)
-        a_grid = v.grids["a"]
+        a_grid = v["a"]
         if not isinstance(a_grid, Grid1D):  # pragma: no cover
             raise ValueError(f"a_grid must be Grid1D, got {type(a_grid).__name__}")
 
@@ -331,7 +331,7 @@ class LinearPowerComputationConfig(ComputationConfig):
             raise ValueError(f"a_grid max_value must be <= 1.0 (scale factor), got {a_grid.max_value}")
 
         # Validate k_grid (wavenumber)
-        k_grid = v.grids["k"]
+        k_grid = v["k"]
         if not isinstance(k_grid, Grid1D):  # pragma: no cover
             raise ValueError(f"k_grid must be Grid1D, got {type(k_grid).__name__}")
 
@@ -444,14 +444,14 @@ class NonLinearPowerComputationConfig(ComputationConfig):
             raise ValueError(f"eval_grid must be ProductGrid for nonlinear power, got {type(v).__name__}")
 
         # Check for required grids
-        if "a" not in v.grids:
+        if "a" not in v.dimension_names:
             raise ValueError("eval_grid must contain 'a' (scale factor) grid")
 
-        if "k" not in v.grids:
+        if "k" not in v.dimension_names:
             raise ValueError("eval_grid must contain 'k' (wavenumber) grid")
 
         # Validate a_grid (scale factor)
-        a_grid = v.grids["a"]
+        a_grid = v["a"]
         if not isinstance(a_grid, Grid1D):  # pragma: no cover
             raise ValueError(f"a_grid must be Grid1D, got {type(a_grid).__name__}")
 
@@ -462,7 +462,7 @@ class NonLinearPowerComputationConfig(ComputationConfig):
             raise ValueError(f"a_grid max_value must be <= 1.0 (scale factor), got {a_grid.max_value}")
 
         # Validate k_grid (wavenumber)
-        k_grid = v.grids["k"]
+        k_grid = v["k"]
         if not isinstance(k_grid, Grid1D):  # pragma: no cover
             raise ValueError(f"k_grid must be Grid1D, got {type(k_grid).__name__}")
 

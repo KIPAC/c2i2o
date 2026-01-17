@@ -59,7 +59,7 @@ class TestCCLIntermediateCalculator:
         """Create a linear power spectrum computation config."""
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=5)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=20, spacing="log")
-        product_grid = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        product_grid = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
         return LinearPowerComputationConfig(
             cosmology_type="ccl_vanilla_lcdm",
             eval_grid=product_grid,
@@ -729,7 +729,7 @@ class TestCCLIntermediateCalculator:
         grid_1d = Grid1D(min_value=0.5, max_value=1.0, n_points=10)
         a_grid = Grid1D(min_value=0.5, max_value=1.0, n_points=5)
         k_grid = Grid1D(min_value=0.01, max_value=10.0, n_points=20, spacing="log")
-        grid_2d = ProductGrid(grids={"a": a_grid, "k": k_grid})
+        grid_2d = ProductGrid(grids=[a_grid, k_grid], dimension_names=["a", "k"])
 
         computations = {
             "chi": ComovingDistanceComputationConfig(
@@ -875,7 +875,6 @@ class TestCCLIntermediateCalculator:
                         "max_value": 1.0,
                         "n_points": 10,
                         "spacing": "linear",
-                        "endpoint": True,
                     },
                     "eval_kwargs": {},
                 }
@@ -906,7 +905,6 @@ class TestCCLIntermediateCalculator:
                         "max_value": 1.0,
                         "n_points": 10,
                         "spacing": "linear",
-                        "endpoint": True,
                     },
                     "eval_kwargs": {},
                 },
@@ -916,24 +914,23 @@ class TestCCLIntermediateCalculator:
                     "cosmology_type": "ccl_vanilla_lcdm",
                     "eval_grid": {
                         "grid_type": "product_grid",
-                        "grids": {
-                            "a": {
+                        "grids": [
+                            {
                                 "grid_type": "grid_1d",
                                 "min_value": 0.5,
                                 "max_value": 1.0,
                                 "n_points": 5,
                                 "spacing": "linear",
-                                "endpoint": True,
                             },
-                            "k": {
+                            {
                                 "grid_type": "grid_1d",
                                 "min_value": 0.01,
                                 "max_value": 10.0,
                                 "n_points": 20,
                                 "spacing": "log",
-                                "endpoint": True,
-                            },
-                        },
+                            },                        
+                        ],
+                        "dimension_names": ["a", "k"],
                     },
                     "eval_kwargs": {},
                 },

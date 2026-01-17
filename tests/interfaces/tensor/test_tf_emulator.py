@@ -505,7 +505,7 @@ class TestTFC2IEmulatorProductGrid:
         """Test training with 2D product grid."""
         grid_k = Grid1D(min_value=0.1, max_value=5.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
-        grid = ProductGrid(grids={"k": grid_k, "z": grid_z})
+        grid = ProductGrid(grids=[grid_k, grid_z], dimension_names=["k", "z"])
 
         n_samples = 8
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}
@@ -539,7 +539,7 @@ class TestTFC2IEmulatorProductGrid:
         """Test evaluation with product grid."""
         grid_k = Grid1D(min_value=0.1, max_value=5.0, n_points=10)
         grid_z = Grid1D(min_value=0.0, max_value=2.0, n_points=8)
-        grid = ProductGrid(grids={"k": grid_k, "z": grid_z})
+        grid = ProductGrid(grids=[grid_k, grid_z], dimension_names=["k", "z"])
 
         n_samples = 8
         input_data = {"Omega_c": np.linspace(0.20, 0.30, n_samples)}

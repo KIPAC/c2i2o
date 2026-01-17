@@ -143,10 +143,11 @@ class TestNumpyTensor2D:
     def test_evaluate_gradient(self) -> None:
         """Test evaluation with non-constant values."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=11),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=11),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=11),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=11),
+            ],
+            dimension_names=["x", "y"],
         )
 
         # Create values that vary linearly: f(x,y) = x + y
@@ -168,11 +169,12 @@ class TestNumpyTensor3D:
     def test_initialization_3d(self) -> None:
         """Test initialization with 3D grid."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=5),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=4),
-                "z": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=5),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=4),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+            ],
+            dimension_names=["x", "y", "z"],
         )
         values = np.ones((5, 4, 3))
         tensor = NumpyTensor(grid=grid, values=values)
@@ -183,11 +185,12 @@ class TestNumpyTensor3D:
     def test_evaluate_3d(self) -> None:
         """Test evaluation in 3D."""
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=5),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=4),
-                "z": Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=5),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=4),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
+            ],
+            dimension_names=["x", "y", "z"],
         )
         values = np.ones((5, 4, 3))
         tensor = NumpyTensor(grid=grid, values=values)
@@ -294,10 +297,11 @@ class TestNumpyTensorCoverageGaps:
         Covers line 211 and lines 221-224: validation in set_values for ProductGrid
         """
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=10),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=20),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=10),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=20),
+            ],
+            dimension_names=["x", "y"],
         )
         tensor = NumpyTensor(grid=grid, values=np.ones((10, 20)))
 
@@ -313,10 +317,11 @@ class TestNumpyTensorCoverageGaps:
         Covers line 321: n_points calculation
         """
         grid = ProductGrid(
-            grids={
-                "x": Grid1D(min_value=0.0, max_value=1.0, n_points=10),
-                "y": Grid1D(min_value=0.0, max_value=1.0, n_points=10),
-            }
+            grids=[
+                Grid1D(min_value=0.0, max_value=1.0, n_points=10),
+                Grid1D(min_value=0.0, max_value=1.0, n_points=10),
+            ],
+            dimension_names=["x", "y"],
         )
         values = np.ones((10, 10))
         tensor = NumpyTensor(grid=grid, values=values)
@@ -358,7 +363,7 @@ class TestNumpyTensorSetInitialization:
         """Test initialization with 2D product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         values = np.random.randn(4, 5, 7)
 
@@ -426,7 +431,7 @@ class TestNumpyTensorSetFromTensorList:
         """Test creating from list of 2D tensors."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         tensors = [
             NumpyTensor(grid=grid, values=np.ones((5, 7))),
@@ -616,7 +621,7 @@ class TestNumpyTensorSetEvaluationProductGrid:
         """Test evaluation on 2D product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=2.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=4.0, n_points=5)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x + y for each sample
         x_vals = grid_x.build_grid()
@@ -644,7 +649,7 @@ class TestNumpyTensorSetEvaluationProductGrid:
         """Test interpolation on product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x * y for each sample
         x_vals = grid_x.build_grid()
@@ -674,7 +679,7 @@ class TestNumpyTensorSetEvaluationProductGrid:
         """Test that missing dimension raises error."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=3)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=2, values=np.zeros((2, 3, 3)))
 
@@ -688,7 +693,7 @@ class TestNumpyTensorSetEvaluationProductGrid:
         """Test vectorized evaluation on product grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
         grid_y = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         # Create values: f(x, y) = x^2 + y^2
         x_vals = grid_x.build_grid()
@@ -734,7 +739,7 @@ class TestNumpyTensorSetProperties:
         """Test ndim for 2D grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.zeros((3, 5, 7)))
 
@@ -751,7 +756,7 @@ class TestNumpyTensorSetProperties:
         """Test grid_shape for 2D grid."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.zeros((3, 5, 7)))
 
@@ -786,11 +791,11 @@ class TestNumpyTensorSetGridsEqual:
         """Test that identical product grids are equal."""
         grid_x1 = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y1 = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid1 = ProductGrid(grids={"x": grid_x1, "y": grid_y1})
+        grid1 = ProductGrid(grids=[grid_x1, grid_y1], dimension_names=["x", "y"])
 
         grid_x2 = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y2 = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid2 = ProductGrid(grids={"x": grid_x2, "y": grid_y2})
+        grid2 = ProductGrid(grids=[grid_x2, grid_y2], dimension_names=["x", "y"])
 
         assert NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
@@ -800,8 +805,8 @@ class TestNumpyTensorSetGridsEqual:
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
         grid_z = Grid1D(min_value=0.0, max_value=3.0, n_points=9)
 
-        grid1 = ProductGrid(grids={"x": grid_x, "y": grid_y})
-        grid2 = ProductGrid(grids={"x": grid_x, "z": grid_z})
+        grid1 = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
+        grid2 = ProductGrid(grids=[grid_x, grid_z], dimension_names=["x", "z"])
 
         assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
@@ -810,7 +815,7 @@ class TestNumpyTensorSetGridsEqual:
         grid1 = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
 
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=11)
-        grid2 = ProductGrid(grids={"x": grid_x})
+        grid2 = ProductGrid(grids=[grid_x], dimension_names=["x"])
 
         assert not NumpyTensorSet._grids_equal(grid1, grid2)  # pylint: disable=protected-access
 
@@ -834,7 +839,7 @@ class TestNumpyTensorSetRepr:
         """Test repr for 2D tensor set."""
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=5)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=7)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y})
+        grid = ProductGrid(grids=[grid_x, grid_y], dimension_names=["x", "y"])
 
         tensor_set = NumpyTensorSet(grid=grid, n_samples=3, values=np.zeros((3, 5, 7)))
 
@@ -989,7 +994,10 @@ class TestNumpyTensorSetIntegration:
         grid_x = Grid1D(min_value=0.0, max_value=1.0, n_points=10)
         grid_y = Grid1D(min_value=0.0, max_value=2.0, n_points=15)
         grid_z = Grid1D(min_value=0.0, max_value=3.0, n_points=20)
-        grid = ProductGrid(grids={"x": grid_x, "y": grid_y, "z": grid_z})
+        grid = ProductGrid(
+            grids=[grid_x, grid_y, grid_z],
+            dimension_names=["x", "y", "z"],
+        )
 
         n_samples = 5
         values = np.random.randn(n_samples, 10, 15, 20)
