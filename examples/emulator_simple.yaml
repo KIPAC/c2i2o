@@ -1,0 +1,5 @@
+# Minimal emulation configuration
+# The trained emulator contains all necessary information
+
+emulator_name: "simple_emulator"
+output_dir: "predictions"

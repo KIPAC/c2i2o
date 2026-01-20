@@ -1,0 +1,22 @@
+# Advanced training configuration with multiple intermediates
+output_dir: "training_results/advanced_emulator"
+
+emulator:
+  name: "advanced_cosmology_emulator"
+  emulator_type: "tf_c2i"
+  
+  baseline_cosmology:
+    cosmology_type: "ccl_vanilla_lcdm"
+  
+  # Multiple intermediates
+  grids:
+    P_lin: null      # Linear matter power spectrum
+    chi: null        # Comoving distance
+    H_over_H0: null  # Hubble parameter
+    P_nl: null       # Growth factor
+  
+  # Deeper network for complex mapping
+  hidden_layers: [256, 128, 64, 32, 16]
+  
+  learning_rate: 0.0005
+  activation: "relu"

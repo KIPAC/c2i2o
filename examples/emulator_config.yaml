@@ -1,0 +1,28 @@
+# Configuration for c2i2o c2i emulate command
+# Usage: c2i2o c2i emulate \
+#          --emulator-path models/my_emulator \
+#          --input test_params.hdf5 \
+#          --output predictions.hdf5 \
+#          --verbose
+
+# Note: The emulate command loads the trained emulator from disk,
+# so this config file is primarily for documentation/metadata.
+# Most settings are loaded from the saved emulator.
+
+# Emulator name (for reference)
+emulator_name: "p_lin_chi_emulator"
+
+# Output directory for results (optional, can override via --output)
+output_dir: "predictions/test_run_001"
+
+# Emulator configuration is loaded from the saved model
+# These values are shown here for reference only:
+emulator_type: "tf_c2i"
+intermediate_names:
+  - "P_lin"
+  - "chi"
+
+# Optional: Prediction settings
+# These can also be passed as command-line arguments
+prediction_settings:
+  batch_size: 32

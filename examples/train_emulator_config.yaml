@@ -1,0 +1,34 @@
+# Configuration for c2i2o c2i train-emulator command
+# Usage: c2i2o c2i train-emulator train_emulator_config.yaml \
+#          --input training_params.hdf5 \
+#          --output training_intermediates.hdf5 \
+#          --emulator-output models/my_emulator \
+#          --epochs 200 --verbose
+
+# Output directory for training results
+output_dir: "training_results/emulator_v1"
+
+# Emulator configuration
+emulator:
+  # Unique name for this emulator
+  name: "p_lin_chi_emulator"
+  
+  # Emulator type (always tf_c2i for TensorFlow emulator)
+  emulator_type: "tf_c2i"
+  
+  # Baseline cosmology (reference point for parameter variations)
+  baseline_cosmology:
+    cosmology_type: "ccl_vanilla_lcdm"
+  
+  # Intermediates to emulate (must match names in training data)
+  # Set to None before training (grids will be populated from data)
+  grids:
+    P_lin: null
+    chi: null
+  
+  # Neural network architecture
+  hidden_layers: [128, 64, 32]
+  
+  # Training hyperparameters
+  learning_rate: 0.001
+  activation: "relu"

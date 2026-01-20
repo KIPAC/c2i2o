@@ -21,5 +21,4 @@ intermediate_calculator:
         max_value: 1.0
         n_points: 50
         spacing: linear
-        endpoint: true
       eval_kwargs: {}

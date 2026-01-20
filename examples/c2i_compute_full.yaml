@@ -24,7 +24,6 @@ intermediate_calculator:
         max_value: 1.0      # Maximum scale factor (today)
         n_points: 100       # Number of evaluation points
         spacing: linear     # Linear spacing in scale factor
-        endpoint: true
       eval_kwargs: {}
 
     # Hubble parameter evolution H(a)/H0
@@ -38,7 +37,6 @@ intermediate_calculator:
         max_value: 1.0
         n_points: 100
         spacing: linear
-        endpoint: true
       eval_kwargs: {}
 
     # Linear matter power spectrum P_lin(k, a)
@@ -48,21 +46,20 @@ intermediate_calculator:
       cosmology_type: ccl_vanilla_lcdm
       eval_grid:
         grid_type: product_grid
+        dimension_names: ['a', 'k']
         grids:
-          a:  # Scale factor grid
+          - # scale factor grid
             grid_type: grid_1d
             min_value: 0.5
             max_value: 1.0
             n_points: 10
             spacing: linear
-            endpoint: true
-          k:  # Wavenumber grid (h/Mpc)
+          - # Wavenumber grid (h/Mpc)
             grid_type: grid_1d
             min_value: 0.001    # Minimum k
             max_value: 10.0     # Maximum k
             n_points: 100       # Number of k points
             spacing: log        # Logarithmic spacing (required)
-            endpoint: true
       eval_kwargs: {}
 
     # Non-linear matter power spectrum P_nl(k, a)
@@ -72,19 +69,18 @@ intermediate_calculator:
       cosmology_type: ccl_vanilla_lcdm
       eval_grid:
         grid_type: product_grid
+        dimension_names: ['a', 'k']
         grids:
-          a:
+          - # scale factor grid
             grid_type: grid_1d
             min_value: 0.5
             max_value: 1.0
             n_points: 10
             spacing: linear
-            endpoint: true
-          k:
+          - # Wavenumber grid (h/Mpc)
             grid_type: grid_1d
             min_value: 0.001
             max_value: 10.0
             n_points: 100
             spacing: log
-            endpoint: true
       eval_kwargs: {}

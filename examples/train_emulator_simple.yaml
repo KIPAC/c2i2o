@@ -1,0 +1,14 @@
+# Minimal training configuration
+output_dir: "models/simple_emulator"
+
+emulator:
+  name: "simple_emulator"
+  emulator_type: "tf_c2i"
+  
+  baseline_cosmology:
+    cosmology_type: "ccl_vanilla_lcdm"
+  
+  grids:
+    chi: null
+ 
+  hidden_layers: [64, 32]
