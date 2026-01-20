@@ -506,7 +506,9 @@ class TFC2IEmulator(C2IEmulator):
                 # Reconstruct sub-grids
                 sub_grids: list[Grid1D] = []
                 dimension_names: list[str] = []
-                for name, sub_grid_dict in grid_dict["grids"].items():
+                for name, sub_grid_dict in zip(
+                    grid_dict["dimension_names"], grid_dict["grids"], strict=False
+                ):
                     sub_grids.append(Grid1D(**sub_grid_dict))
                     dimension_names.append(name)
                 grid = ProductGrid(grids=sub_grids, dimension_names=dimension_names)

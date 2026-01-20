@@ -6,12 +6,12 @@ parameter input to intermediate output.
 """
 
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 import yaml
 from pydantic import BaseModel, Field
-from tables_io import read, write
+from tables_io import read
 
 from c2i2o.core.intermediate import IntermediateBase, IntermediateMultiSet, IntermediateSet
 from c2i2o.core.tensor import NumpyTensor
@@ -153,7 +153,6 @@ class C2ICalculator(BaseModel):
         self,
         input_file: str | Path,
         output_file: str | Path,
-        **kwargs: Any,
     ) -> None:
         """Compute intermediates from parameter file and write to output file.
 
@@ -166,8 +165,6 @@ class C2ICalculator(BaseModel):
             Path to input HDF5 file containing parameters.
         output_file
             Path to output HDF5 file for intermediates.
-        **kwargs
-            Additional keyword arguments passed to tables_io.write().
 
         Raises
         ------
@@ -207,21 +204,8 @@ class C2ICalculator(BaseModel):
         # Compute intermediates
         intermediate_sets = self.compute(params)
 
-        # Prepare output data structure
-        output_data: dict[str, list[np.ndarray]] = {}
-
-        for _i, intermediate_set in enumerate(intermediate_sets):
-            for name, intermediate in intermediate_set.intermediates.items():
-                if name in output_data:
-                    output_data[name].append(cast(NumpyTensor, intermediate.tensor).values)
-                else:
-                    output_data[name] = [cast(NumpyTensor, intermediate.tensor).values]
-
-        write_data: dict[str, np.ndarray] = {key: np.array(val) for key, val in output_data.items()}
-
-        # Write to output file
         try:
-            write(write_data, str(output_file), **kwargs)
+            intermediate_sets.to_file(str(output_file))
         except Exception as e:  # pragma: no cover
             raise RuntimeError(f"Failed to write intermediates to {output_file}: {e}") from e
 
