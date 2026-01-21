@@ -621,42 +621,40 @@ Tracer: Collection of tracer elements for a cosmological observable
 
 ### src/c2i2o/core/grid.py
 
-**Purpose:** Grid classes for defining evaluation points in parameter space.
+**Purpose**: Grid definitions for function evaluations.
 
-**Classes:**
-- GridBase: Abstract base class for all grids
-  - Required field: grid_type (string identifier for discriminated unions)
-  - Abstract method: build_grid()
-  - Uses Pydantic for parameter validation
+**Classes**:
+- `GridBase`: Abstract base class
+  - Field: `grid_type` (string identifier)
+  - Abstract method: `build_grid() -> np.ndarray`
+  - Abstract property: `shape -> tuple[int, ...]`
 
-- Grid1D: One-dimensional grid
-  - grid_type: Literal["grid_1d"]
-  - Fields: min_value, max_value, n_points, spacing ("linear" or "log"), endpoint
-  - Validation: max > min, n_points > 0, positive values for log spacing
-  - Methods: build_grid() creates NumPy array of evaluation points
-  - Supports linear and logarithmic spacing
+- `Grid1D`: One-dimensional grid
+  - `grid_type`: "grid_1d"
+  - Fields: `min_value`, `max_value`, `n_points`, `spacing` (linear/log)
+  - Validation: `min_value < max_value`, `spacing` in ["linear", "log"]
+  - Method: `build_grid()` returns 1D array
+  - Property: `shape -> (n_points,)`
 
-- ProductGrid: Cartesian product of multiple 1D grids
-  - grid_type: Literal["product_grid"]
-  - Field: grids (dict mapping names to Grid1D instances)
-  - Validation: At least one grid required, all grids must be Grid1D
-  - Methods: build_grid() creates meshgrid arrays
-  - Properties: shape, n_dim
-  - Used for multi-dimensional parameter spaces
+- `ProductGrid`: Multi-dimensional grid from 1D grids
+  - `grid_type`: "product_grid"
+  - Field: `grids` (list[Grid1D])
+  - Field: `dimension_names` (list[str])
+  - Validation: Non-empty grids, grids matches dimension_names length
+  - Properties: `n_dimensions`, `n_points_per_dim`, `total_points`, `shape`
+  - Methods:
+    - `build_grid()` returns flattened points (total_points, n_dimensions)
+    - `build_grid_dict()` returns meshgrid dict
+  - I/O: `save_grid(filename)`, `load_grid(filename)` (static method)
 
-**Design Decisions:**
-- grid_type field enables discriminated unions for serialization
-- Literal types ensure type safety
-- Abstract base allows for custom grid implementations
-- Pydantic validation ensures parameter correctness
-- Full serialization/deserialization support via discriminated unions
+**Design Decisions**:
+- Abstract base allows extensible grid types
+- Grid1D supports linear and logarithmic spacing
+- ProductGrid uses list instead of dict for grids (ordered)
+- dimension_names must match grids length
+- Validation ensures grid consistency
+- HDF5 I/O via tables_io for large grids
 
-**GridUnion Type Alias:**
-- Annotated[Union[Grid1D, ProductGrid], Field(discriminator="grid_type")]
-- Enables automatic type detection during deserialization
-- Used in ComputationConfig for eval_grid field
-
----
 
 ### src/c2i2o/core/computation.py
 
@@ -691,13 +689,14 @@ Tracer: Collection of tracer elements for a cosmological observable
 - `TensorBase`: Abstract base class for tensors
   - Field: `grid` (GridBase)
   - Field: `tensor_type` (string identifier)
-  - Abstract methods: `get_values()`, `set_values()`, `evaluate()`
+  - Abstract methods: `get_values()`, `set_values()`, `evaluate()`, `to_numpy()`
   - Abstract properties: `shape`, `ndim`
 
 - `NumpyTensor`: NumPy implementation
   - `tensor_type`: "numpy"
   - Field: `values` (np.ndarray)
   - Validates shape matches grid
+  - Method: `flatten()` returns 1D array
   - Interpolation:
     - 1D: Linear interpolation via `np.interp()`
     - Multi-D: Multi-linear via `scipy.interpolate.RegularGridInterpolator`
