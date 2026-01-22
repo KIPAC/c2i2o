@@ -322,6 +322,67 @@ class IntermediateSet(BaseModel):
             results[name] = self.evaluate(name, points_dict[name])
         return results
 
+    def flatten(self) -> np.ndarray:
+        """Flatten all intermediate tensors into a single 1D array.
+
+        This method concatenates the values from all intermediate tensors
+        in alphabetical order by name. Each intermediate's tensor values
+        are flattened before concatenation.
+
+        Returns
+        -------
+        np.ndarray
+            Flattened array containing all intermediate values.
+            Shape: (total_n_points,) where total_n_points is the sum
+            of all tensor sizes.
+
+        Raises
+        ------
+        ValueError
+            If the set contains no intermediates.
+
+        Examples
+        --------
+        >>> iset = IntermediateSet(intermediates={
+        ...     "power_spectrum": intermediate1,  # 100 points
+        ...     "correlation": intermediate2,      # 50 points
+        ... })
+        >>> flat = iset.flatten()  # Shape: (150,)
+
+        Notes
+        -----
+        The flattening order is deterministic (alphabetical by name) to
+        ensure consistency across multiple calls.
+        """
+        if len(self.intermediates) == 0:
+            raise ValueError("Cannot flatten empty IntermediateSet")
+
+        # Get intermediates in sorted order for consistency
+        sorted_names = sorted(self.intermediates.keys())
+
+        # Flatten each intermediate and concatenate
+        flattened_arrays = []
+        for name in sorted_names:
+            intermediate = self.intermediates[name]
+            # Get tensor values and flatten
+            values = cast(NumpyTensor, intermediate.tensor).values
+            flattened_arrays.append(values.ravel())
+
+        return np.concatenate(flattened_arrays)
+
+    @property
+    def grids(self) -> dict[str, "GridBase"]:
+        """Get dictionary of grids for all intermediates.
+
+        Returns
+        -------
+        dict[str, GridBase]
+            Dictionary mapping intermediate names to their grid definitions.
+        """
+        from c2i2o.core.grid import GridBase
+
+        return {name: inter.tensor.grid for name, inter in self.intermediates.items()}
+
     def get_values_dict(self) -> dict[str, Any]:
         """Get values from all intermediates as a dictionary.
 
@@ -901,6 +962,69 @@ class IntermediateMultiSet(IntermediateSet):
         """
         intermediate_names = sorted(self.intermediates.keys())
         return f"IntermediateMultiSet(n_samples={self.n_samples}, " f"intermediates={intermediate_names})"
+
+    def flatten(self) -> np.ndarray:
+        """Flatten all intermediate tensors across all samples.
+
+        This method flattens intermediates from all samples into a 2D array.
+        Each row represents one sample, with columns containing all intermediate
+        values in alphabetical order by name.
+
+        Returns
+        -------
+        np.ndarray
+            Flattened array with shape (n_samples, total_n_points).
+            Each row contains all intermediate values for one sample.
+
+        Raises
+        ------
+        ValueError
+            If the set contains no intermediates or no samples.
+
+        Examples
+        --------
+        >>> imultiset = IntermediateMultiSet(intermediates={
+        ...     "power_spectrum": intermediate1,  # NumpyTensorSet, 100 points
+        ...     "correlation": intermediate2,      # NumpyTensorSet, 50 points
+        ... })
+        >>> flat = imultiset.flatten()
+        >>> # Shape: (n_samples, 150) where 150 = 100 + 50
+
+        Notes
+        -----
+        The flattening order is deterministic (alphabetical by name) to
+        ensure consistency across multiple calls. All intermediates must
+        contain NumpyTensorSet instances with matching n_samples.
+        """
+        if len(self.intermediates) == 0:
+            raise ValueError("Cannot flatten empty IntermediateMultiSet")
+
+        if self.n_samples == 0:
+            raise ValueError("Cannot flatten IntermediateMultiSet with zero samples")
+
+        # Get intermediates in sorted order for consistency
+        sorted_names = sorted(self.intermediates.keys())
+
+        # Flatten each intermediate across all samples
+        flattened_arrays = []
+        for name in sorted_names:
+            intermediate = self.intermediates[name]
+            # Get tensor set values
+            tensor_set = intermediate.tensor
+
+            # For each sample, flatten the tensor values
+            sample_arrays = []
+            for i in range(self.n_samples):
+                values = cast(NumpyTensorSet, tensor_set).values[i]
+                sample_arrays.append(values.ravel())
+
+            # Stack samples vertically: (n_samples, n_points_for_this_intermediate)
+            stacked = np.stack(sample_arrays, axis=0)
+            flattened_arrays.append(stacked)
+
+        # Concatenate along feature dimension (axis=1)
+        # Result shape: (n_samples, total_n_points)
+        return np.concatenate(flattened_arrays, axis=1)
 
     def to_file(self, filepath: str | Path) -> None:
         """Save IntermediateMultiSet to HDF5 and YAML files.
