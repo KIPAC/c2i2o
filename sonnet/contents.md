@@ -100,522 +100,7 @@
 
 ## Module Structure
 
-### src/c2i2o/c2i_calculator.py
 
-**Purpose:** Main calculator for cosmology to intermediates workflow.
-
-**Classes:**
-- C2ICalculator: Cosmology to intermediate calculator
-  - Required fields:
-    - intermediate_calculator (CCLIntermediateCalculator): Class to perform the calculations
-  - Methods:
-    - compute(params: dict[str, np.ndarray]) -> list[IntermediateSet]: Compute intermediates from parameter dictionary
-    - compute_from_file(filepath: str | Path, groupname: str = "parameters") -> list[IntermediateSet]: Load parameters from HDF5 and compute intermediates
-    - to_yaml(filepath: str | Path): Write configuration to YAML file
-    - from_yaml(filepath: str | Path) -> C2ICalculator: Load configuration from YAML file (class method)
-  - Serialization: Full support for YAML via custom NumPy array handling
-  - Validation: Pydantic-based with extra='forbid'
-
-**Features:**
-- Manages complete workflow from cosmological parameters to intermediate data products
-- Uses CCLIntermediateCalculator for actual computations
-- Packages results into IntermediateSet objects
-- Supports batch processing of parameter sets
-- HDF5 input via tables_io.read
-- YAML configuration persistence with NumPy array support
-
-**Design Decisions:**
-- Uses Pydantic BaseModel for configuration validation
-- Delegates computation to CCLIntermediateCalculator
-- Returns list of IntermediateSet objects for batch processing
-- Custom YAML representer handles NumPy arrays
-- Arbitrary types allowed for CCLIntermediateCalculator field
-
-
-### src/c2i2o/parameter_generation.py
-
-**Purpose:** Parameter generation for combined univariate and multivariate distributions.
-
-**Classes:**
-- ParameterGenerator: Generator for cosmological parameter samples
-  - Required fields:
-    - num_samples (int > 0): Number of samples to generate
-    - parameter_space (ParameterSpace): Univariate parameter distributions
-    - multi_distribution_set (MultiDistributionSet): Multivariate parameter distributions
-  - Optional fields:
-    - scale_factor (float > 0, default=1.0): Universal scaling factor for distribution widths
-  - Validation:
-    - Ensures num_samples and scale_factor are positive
-    - Checks for parameter name collisions between ParameterSpace and MultiDistributionSet
-    - Validates against default multi-distribution names (dist{i}_param{j})
-  - Methods:
-    - generate(random_state): Generate parameter samples, returns dict of arrays
-    - to_yaml(filepath): Save configuration to YAML file
-    - from_yaml(filepath): Load configuration from YAML file (class method)
-    - generate_to_hdf5(filepath, groupname="parameters"): Generate and write directly to HDF5
-  - Internal methods:
-    - _scale_parameter_space(): Apply scale_factor to univariate distribution widths
-    - _scale_multi_distribution_set(): Apply scale_factor² to covariance matrices
-  - Serialization: Full support for YAML and HDF5 via tables_io
-
-**Features:**
-- Combines independent and correlated parameter distributions
-- Supports scaling of distribution widths for sensitivity studies
-- Direct HDF5 output for large sample sets
-- YAML configuration for reproducibility
-- Prevents parameter name collisions across distribution types
-
-**Design Decisions:**
-- Pydantic BaseModel for validation and serialization
-- Scale factor applied differently to univariate (linear) vs multivariate (quadratic on covariance)
-- Separate validation for parameter name uniqueness
-- Uses tables_io for HDF5 compatibility with c2i2o workflow
-
-
-
-
-### src/c2i2o/cli/__init__.py
-
-**Purpose:** Command-line interface package initialization.
-
-**Exports:**
-- cli: Main CLI entry point (Click group)
-- cosmo: Cosmology command group
-
-### src/c2i2o/cli/main.py
-
-**Purpose:** Main CLI entry point and command group registration.
-
-**Functions:**
-- cli(): Main Click group
-  - Provides version option
-  - Registers all command groups (cosmo)
-  - Entry point for 'c2i2o' command
-
-**Configuration:**
-- Entry point: c2i2o = "c2i2o.cli:cli" (in pyproject.toml)
-
-### src/c2i2o/cli/option.py
-
-**Purpose:** Reusable CLI options and custom parameter types.
-
-**Classes:**
-
-- PartialOption: Wrapper for click.option with partial arguments
-  - Enables reusable option definitions across commands
-  - Maintains consistent behavior and documentation
-
-- PartialArgument: Wrapper for click.argument with partial arguments
-  - Enables reusable argument definitions across commands
-
-**Standard Arguments:**
-- config_file_arg: YAML configuration file input (Path, must exist)
-- input_file_arg: HDF5 input file (Path, must exist)
-
-**Standard Options:**
-- output_file_opt: Output HDF5 file path (-o, --output, required)
-- output_dir_opt: Output directory for plots (-d, --output-dir, required)
-- random_seed_opt: Random seed for reproducibility (-s, --random-seed, optional)
-- groupname_opt: HDF5 group name (-g, --groupname, default="parameters")
-- overwrite_opt: Overwrite protection flag (--overwrite, flag)
-- verbose_opt: Verbose output flag (-v, --verbose, flag)
-
-
-### src/c2i2o/cli/cosmo.py
-
-**Purpose:** Commands for cosmological parameter operations.
-
-**Command Group:**
-- cosmo: Parent group for cosmology-related commands
-
-**Commands:**
-- generate: Generate parameter samples from YAML configuration
-  - Arguments: config_file (YAML with ParameterGenerator)
-  - Options: output, groupname, random_seed, overwrite, verbose
-  - Loads ParameterGenerator from YAML
-  - Generates samples with optional random seed
-  - Saves to HDF5 with configurable group name
-  - Overwrite protection (requires --overwrite flag)
-  - Colored success/error messages
-  - Comprehensive error handling
-
-- plot: Plot parameter distributions from HDF5 [PLACEHOLDER]
-  - Arguments: input_file (HDF5 with parameter samples)
-  - Options: output_dir, groupname, verbose
-  - Creates output directory if needed
-  - Placeholder implementation with warning message
-  - TODO: 1D histograms, 2D corner plots, summary statistics
-
-**Features:**
-- Reuses standardized options from option.py
-- Click-based CLI with proper help messages
-- Path validation and error handling
-- Verbose mode for detailed output
-- Reproducible generation with random seeds
-
-**Usage Examples:**
-  c2i2o cosmo generate config.yaml -o samples.h5 -s 42 -v
-  c2i2o cosmo generate config.yaml -o samples.h5 --overwrite
-  c2i2o cosmo plot samples.h5 -d plots/ -v
-
-### src/c2i2o/cli/c2i.py
-
-**Purpose:** computing intermediates from cosmological parameters
-
-**Command Group:**
-- c2i: Parent group for cosmology-to-intermediates-related commands
-
-**Commands:**
-- compute: Compute intermediates from cosmoligcal parameters
-  - Arguments: config_file (YAML with C2ICalculator)
-  - Options: input, output, overwrite, verbose
-  - Loads C2ICalculator from YAML
-  - For each set of parameters, computes sets of intermetidates
-  - Saves to HDF5
-  - Overwrite protection (requires --overwrite flag)
-  - Colored success/error messages
-  - Comprehensive error handling
-
-**Features:**
-- Reuses standardized options from option.py
-- Click-based CLI with proper help messages
-- Path validation and error handling
-- Verbose mode for detailed output
-- Reproducible generation with random seeds
-
-**Usage Examples:**
-  c2i2o c2i compute config.yaml -i samples.hdf5 -o intermediates.hdf5
-
-
-### src/c2i2o/core/tracer.py
-
-**Purpose:** Tracer definitions for cosmological observables.
-
-**Classes:**
-
-TracerConfigBase: Abstract base class for tracer configurations
-  - Required fields:
-    - tracer_type (str): Type identifier for the tracer
-    - name (str): Unique identifier for this tracer instance
-  - Validation:
-    - Ensures name is not empty
-  - Notes: Subclasses must implement specific tracer functionality
-
-NumberCountsTracerConfig: Configuration for galaxy number counts tracers
-  - Inherits from TracerConfigBase
-  - Required fields:
-    - tracer_type (Literal["number_counts"]): Type identifier
-    - name (str): Unique name for this tracer
-    - has_rsd (bool): Whether to include redshift-space distortions
-    - has_magnification (bool): Whether to include magnification bias
-  - Optional fields:
-    - bias (float | None): Galaxy bias parameter
-
-WeakLensingTracerConfig: Configuration for weak gravitational lensing tracers
-  - Inherits from TracerConfigBase
-  - Required fields:
-    - tracer_type (Literal["weak_lensing"]): Type identifier
-    - name (str): Unique name for this tracer
-    - has_intrinsic_alignment (bool): Whether to include intrinsic alignments
-  - Optional fields:
-    - ia_bias (tuple[float, float] | None): Intrinsic alignment bias parameters
-
-CMBLensingTracerConfig: Configuration for CMB lensing tracers
-  - Inherits from TracerConfigBase
-  - Required fields:
-    - tracer_type (Literal["cmb_lensing"]): Type identifier
-    - name (str): Unique name for this tracer (typically "cmb_lensing")
-  - Notes: No redshift distribution needed (fixed source redshift)
-
-TracerElement: Single element of a cosmological tracer
-  - Optional fields:
-    - radial_kernel (TensorBase | None): Radial kernel as function of redshift/distance
-    - transfer_function (TensorBase | None): Transfer function as function of wavenumber
-    - prefactor (TensorBase | None): Multiplicative prefactor
-    - bessel_derivative (int ≥ 0, default=0): Order of Bessel function derivative
-    - angles_derivative (int ≥ 0, default=0): Order of angular derivative
-  - Methods:
-    - __repr__(): String representation showing components and derivatives
-
-Tracer: Collection of tracer elements for a cosmological observable
-  - Required fields:
-    - elements (list[TracerElement]): List of tracer elements to sum
-  - Optional fields:
-    - name (str | None): Name for the tracer
-    - description (str | None): Description of the tracer
-  - Methods:
-    - get_radial_kernels() -> list[TensorBase]: Extract all radial kernels
-    - get_transfer_functions() -> list[TensorBase]: Extract all transfer functions
-    - get_prefactors() -> list[TensorBase]: Extract all prefactors
-    - sum_radial_kernels() -> TensorBase: Sum all radial kernels
-    - sum_transfer_functions() -> TensorBase: Sum all transfer functions
-    - sum_prefactors() -> TensorBase: Sum all prefactors
-
-**Features:**
-- Supports multiple tracer types for different observables
-- Tracers composed of multiple elements that are summed
-- Each element can have different Bessel/angular derivatives
-- Configuration classes for discriminated union pattern
-- Tensor-based representation for efficient computation
-
-**Design Decisions:**
-- Abstract base class enforces common interface
-- Literal types enable Pydantic discriminated unions
-- Tracer elements allow for complex multi-component observables
-- Tensor abstraction decouples from specific implementations
-- Pydantic validation ensures type safety and data integrity
-
-
-### src/c2i2o/core/emulator.py
-
-**Purpose:** Abstract base class for emulator implementations.
-
-**Classes:**
-- EmulatorBase: Abstract base for all emulators
-  - Type Parameters:
-    - InputType: Type of input data (e.g., dict[str, np.ndarray])
-    - OutputType: Type of output data (e.g., list[IntermediateSet])
-  - Required fields:
-    - emulator_type (str): Type identifier for the emulator
-    - name (str): Unique name for this emulator instance
-  - Optional fields:
-    - is_trained (bool): Whether emulator has been trained (default: False)
-    - input_shape (Any | None): Expected shape/structure of input data
-    - output_shape (Any | None): Expected shape/structure of output data
-  - Abstract methods:
-    - train(input_data, output_data, **kwargs): Train the emulator
-    - emulate(input_data, **kwargs) -> OutputType: Apply trained emulator
-    - save(filepath, **kwargs): Save emulator to disk
-    - load(filepath, **kwargs) -> EmulatorBase: Load emulator from disk (classmethod)
-    - _validate_input_data(input_data): Validate input data format
-    - _validate_output_data(output_data): Validate output data format
-  - Validation: Pydantic-based with extra='forbid'
-
-**Features:**
-- Generic type support for flexible input/output types
-- Validation framework for data consistency
-- Serialization interface for model persistence
-- Training state tracking via is_trained flag
-- Shape tracking for input/output validation
-
-**Design Decisions:**
-- Generic base class allows specialization for different use cases
-- Abstract methods enforce consistent interface across implementations
-- Pydantic integration provides automatic validation
-- input_shape and output_shape set during training for runtime validation
-
-
-### src/c2i2o/core/c2i_emulator.py
-
-**Purpose:** Abstract base class for cosmology-to-intermediate emulators.
-
-**Classes:**
-- C2IEmulator: Emulator mapping cosmological parameters to intermediates
-  - Inherits from: EmulatorBase[dict[str, np.ndarray], list[IntermediateSet]]
-  - Required fields:
-    - baseline_cosmology (CosmologyBase): Reference cosmology
-    - grids (dict[str, GridBase | None]): Grids for each intermediate (None before training)
-  - Properties:
-    - intermediate_names (list[str]): Sorted list from grids.keys()
-  - Helper methods:
-    - _get_grid_shape(grid: GridBase) -> tuple[int, ...]: Get shape from grid
-  - Validation methods:
-    - _validate_input_data(input_data: dict[str, np.ndarray]): Validate cosmological parameters
-    - _validate_output_data(output_data: list[IntermediateSet]): Validate intermediate data
-  - Abstract methods (inherited from EmulatorBase):
-    - train(input_data, output_data, **kwargs): Train on parameter variations
-    - emulate(input_data, **kwargs) -> list[IntermediateSet]: Emulate intermediates
-    - save(filepath, **kwargs): Save emulator
-    - load(filepath, **kwargs) -> C2IEmulator: Load emulator (classmethod)
-
-**Features:**
-- Specialized for cosmology-to-intermediate mapping
-- Grid-based representation of intermediate quantities
-- Automatic intermediate_names from grids dictionary (no redundancy)
-- Stores grids during training (initially None placeholders)
-- Output shapes stored as lists (not tuples) for YAML serialization
-- Input/output validation with detailed error messages
-
-**Design Decisions:**
-- Inherits from EmulatorBase with specific type parameters
-- intermediate_names is property (single source of truth from grids)
-- grids can be None before training, populated during training
-- Baseline cosmology provides reference for parameter variations
-- _get_grid_shape handles Grid1D and ProductGrid types
-- output_shape stored as lists for clean YAML serialization
-
-
-
-### src/c2i2o/core/multi_distribution.py
-
-**Purpose**: Multi-dimensional probability distributions with correlation support.
-
-**Classes**:
-- `MultiDistributionBase`: Abstract base class for multivariate distributions
-  - Required fields: dist_type (string identifier), mean (n_dim array), cov (n_dim × n_dim matrix)
-  - Optional fields: param_names (list of parameter names)
-  - Validation: Ensures covariance matrix is symmetric and positive definite
-  - Properties: n_dim, std (standard deviations), correlation (correlation matrix)
-  - Abstract methods: sample(), log_prob()
-  - Uses Pydantic for parameter validation
-
-- `MultiGauss`: Multivariate Gaussian (normal) distribution
-  - dist_type: Literal["multi_gauss"]
-  - Supports arbitrary covariance structure for correlated parameters
-  - Uses scipy.stats.multivariate_normal backend
-  - Methods: sample() returns (n_samples, n_dim) array, log_prob() for density evaluation
-
-- `MultiLogNormal`: Multivariate log-normal distribution
-  - dist_type: Literal["multi_lognormal"]
-  - Parameters specified in log-space, samples returned in real space (positive values)
-  - Useful for parameters that must be positive (e.g., amplitudes, scales)
-  - Underlying Gaussian in log-space, exponentiated for sampling
-  - Methods: sample() returns positive values, log_prob() evaluates in real space
-
-**Design Decisions**:
-- Covariance validation ensures numerical stability (symmetry, positive definiteness)
-- Correlation matrix derived from covariance for interpretability
-- Optional param_names for clearer output and debugging
-- Follows same pattern as scipy_distributions.py (explicit classes, Literal types)
-- Enables discriminated unions for serialization
-
-### src/c2i2o/core/cosmology.py
-
-**Purpose**: Base classes for representing cosmological models.
-
-**Classes**:
-- `CosmologyBase`: Abstract base class for cosmological models
-  - Required fields: `cosmology_type` (string identifier)
-  - Abstract methods: `get_calculator_class()`
-  - Uses Pydantic for parameter validation
-
-**Design Decisions**:
-- `cosmology_type` field enables discriminated unions for serialization
-- Abstract base allows for custom cosmology implementations
-- Pydantic validation ensures parameter correctness
-
----
-
-### src/c2i2o/core/distribution.py
-
-**Purpose**: Probability distributions for parameter definitions.
-
-**Classes**:
-- `DistributionBase`: Abstract base class for all distributions
-  - Required fields: `dist_type` (string identifier)
-  - Abstract methods: `sample()`, `log_prob()`
-  - Uses Pydantic for parameter validation
-
-- `FixedDistribution`: Degenerate distribution for fixed parameters
-  - `dist_type`: "fixed"
-  - Single parameter: `value` (float)
-  - Returns constant value for all samples
-  - `log_prob()` returns 0.0 (practical implementation of delta function)
-
-**Design Decisions**:
-- `dist_type` field enables discriminated unions for serialization
-- Abstract base allows for custom distribution implementations
-- Pydantic validation ensures parameter correctness
-
----
-
-### src/c2i2o/core/scipy_distributions.py
-
-**Purpose**: Concrete distribution implementations using scipy.stats.
-
-**Design Change**: Originally used dynamic class creation with `pydantic.create_model()`, but this caused type-checking issues. Now uses explicit class definitions for better type safety and IDE support.
-
-**Classes**:
-- `ScipyDistributionBase`: Base class for scipy-wrapped distributions
-  - Inherits from `DistributionBase`
-  - Common parameters: `loc` (location), `scale` (scale)
-  - Uses `dist_type` to identify scipy distribution
-  - Implements: `sample()`, `log_prob()`, `prob()`, `cdf()`
-  - Utility methods: `mean()`, `variance()`, `std()`, `median()`
-  - Support queries: `get_support()`, `ppf()`, `interval()`
-
-**Concrete Distribution Classes** (all inherit from `ScipyDistributionBase`):
-- `Norm`: Normal distribution
-  - `dist_type`: Literal["norm"]
-  - No shape parameters (only loc, scale)
-
-- `Uniform`: Uniform distribution
-  - `dist_type`: Literal["uniform"]
-  - No shape parameters
-
-- `Lognorm`: Log-normal distribution
-  - `dist_type`: Literal["lognorm"]
-  - Shape parameter: `s` (sigma)
-
-- `Truncnorm`: Truncated normal distribution
-  - `dist_type`: Literal["truncnorm"]
-  - Shape parameters: `a`, `b` (truncation bounds)
-  - Validator: ensures `b > a`
-
-- `Powerlaw`: Power-law distribution
-  - `dist_type`: Literal["powerlaw"]
-  - Shape parameter: `a`
-
-- `Gamma`: Gamma distribution
-  - `dist_type`: Literal["gamma"]
-  - Shape parameter: `a`
-
-- `Expon`: Exponential distribution
-  - `dist_type`: Literal["expon"]
-  - No shape parameters
-
-- `T`: Student's t distribution
-  - `dist_type`: Literal["t"]
-  - Shape parameter: `df` (degrees of freedom)
-
-**Design Decisions**:
-- Explicit class definitions instead of dynamic creation for:
-  - Better type checking (mypy compliant)
-  - IDE autocomplete support
-  - Clearer documentation
-  - Easier maintenance
-- Each class explicitly defines its shape parameters as Pydantic fields
-- `loc` and `scale` inherited from base class to reduce duplication
-- Literal types for `dist_type` enable discriminated unions
-- All methods delegate to scipy for consistent behavior
-
----
-
-### src/c2i2o/core/parameter_space.py
-
-**Purpose**: Multi-dimensional parameter spaces with probability distributions.
-
-**Classes**:
-- `ParameterSpace`: Collection of parameters with distributions
-  - Field: `parameters` (dict[str, DistributionUnion])
-  - Uses discriminated union based on `dist_type`
-  - Properties: `parameter_names`, `n_parameters`
-
-**Key Methods**:
-- `sample(n_samples)`: Draw joint samples from all parameters
-  - Returns: `dict[str, np.ndarray]`
-  - Supports `random_state` for reproducibility
-
-- `log_prob(values)`: Compute log probability for each parameter
-  - Input/Output: `dict[str, np.ndarray | float]`
-  
-- `log_prob_joint(values)`: Joint log probability (assumes independence)
-  - Sums individual log probabilities
-
-- `to_array(values)`: Convert parameter dict to ordered array
-  - Parameters ordered alphabetically by name
-  - Handles both scalars and arrays
-
-- `from_array(array)`: Convert ordered array to parameter dict
-  - Inverse of `to_array()`
-
-- Statistics: `get_means()`, `get_stds()`, `get_bounds()`
-
-**Design Decisions**:
-- Dictionary interface preserves parameter names
-- Array conversion for integration with optimizers/samplers
-- Alphabetical ordering ensures consistency
-- Discriminated union enables automatic deserialization
 
 ---
 
@@ -654,30 +139,6 @@ Tracer: Collection of tracer elements for a cosmological observable
 - dimension_names must match grids length
 - Validation ensures grid consistency
 - HDF5 I/O via tables_io for large grids
-
-
-### src/c2i2o/core/computation.py
-
-**Purpose:** Base classes for computation configurations.
-
-**Classes:**
-- ComputationConfig: Configuration for cosmological computations
-  - Required fields:
-    - computation_type: String identifier for the computation
-    - cosmology_type: Type identifier for the cosmology to use
-    - eval_grid: GridUnion (Grid1D or ProductGrid) defining evaluation points
-  - Optional fields:
-    - eval_kwargs: Dict of additional keyword arguments for computation function
-  - Uses discriminated union (GridUnion) for eval_grid
-  - Full serialization/deserialization support
-  - Used as base class for specific computation configurations
-
-**Design Decisions:**
-- computation_type allows for flexible computation identification
-- cosmology_type links computation to specific cosmology implementation
-- eval_grid uses GridUnion for type-safe grid handling
-- eval_kwargs provides extensibility for computation-specific parameters
-- Pydantic BaseModel for validation and serialization
 
 ---
 
@@ -721,6 +182,148 @@ Tracer: Collection of tracer elements for a cosmological observable
 
 ---
 
+### src/c2i2o/core/distribution.py
+
+**Purpose:** Abstract base class for probability distributions.
+
+**Classes:**
+- DistributionBase: Abstract base class combining pydantic validation with distribution operations
+  - Abstract methods: sample(), log_prob()
+  - Attributes: dist_type (string identifier)
+
+- FixedDistribution: Degenerate distribution with all mass at single value
+  - Attributes: value (fixed parameter value)
+  - Returns constant value for all samples
+  - Returns zero log probability everywhere
+
+**Design Decisions:**
+- Pydantic BaseModel for validation and serialization
+- ABC for enforcing implementation of sample() and log_prob()
+- Type hints with Python 3.12+ syntax
+
+---
+
+### src/c2i2o/core/multi_distribution.py
+
+**Purpose:** Multi-dimensional probability distributions with correlations.
+
+**Classes:**
+- MultiDistributionBase: Abstract base for multivariate distributions
+  - Attributes: dist_type, mean, cov, param_names
+  - Validates covariance matrix symmetry and positive definiteness
+  - Abstract methods: sample(), log_prob()
+
+- MultiGauss: Multivariate Gaussian distribution
+  - Uses scipy.stats.multivariate_normal
+  - Supports custom random seeds
+
+- MultiLogNormal: Multivariate log-normal distribution
+  - Log-space parameters (mean, cov)
+  - Methods: mean_real_space(), variance_real_space()
+  - Validates positive input values
+
+- MultiDistributionSet: Collection of independent multivariate distributions
+  - Combines multiple MultiDistributionBase instances
+  - Validates unique parameter names across distributions
+  - Joint sampling and log probability computation
+
+Design Decisions:
+- Discriminated union for distribution type validation
+- Independence assumed between distributions in a set
+- Correlations supported within each distribution
+
+---
+
+### src/c2i2o/core/scipy_distributions.py
+
+**Purpose:** Scipy-based probability distribution implementations.
+
+**Classes:**
+- ScipyDistributionBase: Base wrapper for scipy.stats distributions
+  - Common attributes: loc (location), scale (scale)
+  - Methods: _get_scipy_instance(), sample(), log_prob(), prob(), get_support(), mean(), variance()
+
+**Concrete Distributions:**
+- Norm: Normal (Gaussian) distribution
+- Uniform: Uniform distribution
+- Lognorm: Log-normal distribution (shape parameter s)
+- Truncnorm: Truncated normal distribution (bounds a, b in standardized form)
+- Powerlaw: Power-law distribution (shape parameter a)
+- Gamma: Gamma distribution (shape parameter a)
+- Expon: Exponential distribution
+- T: Student's t-distribution (degrees of freedom df)
+
+**Design Decisions:**
+- All distributions use scipy.stats backend
+- Pydantic validation for parameters
+- Consistent interface via DistributionBase inheritance
+- Literal types for dist_type discrimination
+
+---
+
+### src/c2i2o/core/parameter_space.py
+
+** Purpose:** Multi-dimensional parameter spaces with probability distributions.
+
+**Classes:**
+- ParameterSpace: Manages parameter space with associated distributions
+  - Attributes: parameters (mapping of names to distributions)
+  - Properties: parameter_names, n_parameters
+  - Methods: sample(), log_prob(), to_array(), from_array()
+  - I/O: save_samples(), load_samples() using tables_io
+
+**Types:**
+- DistributionUnion: Discriminated union of all supported distribution types
+  - Includes: Norm, Uniform, Lognorm, Truncnorm, Powerlaw, Gamma, Expon, T, FixedDistribution
+
+**Design Decisions:**
+- Uses discriminated unions for automatic distribution type selection
+- HDF5 I/O via tables_io for integration with c2i2o workflow
+- Sorted parameter names for consistent ordering
+
+---
+
+### src/c2i2o/core/cosmology.py
+
+**Purpose:** Abstract base class for cosmological models.
+
+**Classes:**
+- CosmologyBase: Abstract base for cosmology parameter objects
+  - Attributes: cosmology_type (string identifier)
+  - Abstract methods: get_calculator_class(), create_calculator()
+  - Purpose: Separate parameter storage from calculations
+
+**Design Decisions:**
+- Pydantic for parameter validation and serialization
+- External packages (astropy, CCL, CAMB) perform calculations
+- Cosmology objects store only parameters
+- create_calculator() accepts kwargs for runtime parameters
+
+---
+
+### src/c2i2o/core/computation.py
+
+Purpose: Configuration for cosmological computations.
+
+Classes:
+- ComputationConfig: Configuration for a cosmological calculation
+  - Attributes:
+    - computation_type (string identifier)
+    - cosmology_type (must match CosmologyBase subclass)
+    - eval_grid (Grid1D or ProductGrid)
+    - eval_kwargs (additional function parameters)
+
+Types:
+- GridUnion: Discriminated union of Grid1D | ProductGrid
+
+Design Decisions:
+- Discriminated unions for automatic computation type selection
+- Separates what to compute from where to compute it
+- eval_grid provides evaluation domain
+- eval_kwargs for computation-specific parameters
+
+---
+
 ### src/c2i2o/core/intermediate.py
 
 **Purpose**: Intermediate data products in cosmological pipeline.
@@ -760,65 +363,179 @@ Tracer: Collection of tracer elements for a cosmological observable
 - `ComovingDistanceEvolution`: χ(z)
 - `HubbleEvolution`: H(z)
 
+--
 
+## src/c2i2o/core/tracer.py
 
+**Purpose:** Tracer configuration for cosmological observables.
 
+**Classes:**
+- TracerElement: Single element of a tracer decomposition
+  - Attributes:
+    - radial_kernel (optional TensorBase)
+    - transfer_function (optional TensorBase)
+    - prefactor (optional TensorBase)
+    - bessel_derivative (int, default 0)
+    - angles_derivative (int, default 0)
+  - At least one of radial_kernel, transfer_function, or prefactor must be provided
+
+- Tracer: Collection of tracer elements
+  - Attributes:
+    - elements (list of TracerElement)
+    - name (optional string)
+    - description (optional string)
+  - Methods:
+    - get_radial_kernels(), get_transfer_functions(), get_prefactors()
+    - get_bessel_derivatives(), get_angles_derivatives()
+    - sum_radial_kernels()
+  - Supports len() and iteration
+
+- TracerConfigBase: Abstract base for tracer configuration
+  - Attributes: tracer_type (string identifier)
+  - Abstract method: create_tracer()
+
+- NumberCountsTracerConfig: Configuration for number counts tracers
+  - Attributes:
+    - z_grid (redshift grid)
+    - dNdz_grid (redshift distribution, non-negative)
+    - bias (galaxy bias, optional)
+    - mag_bias (magnification bias, optional)
+
+- CMBLensingTracerConfig: Configuration for CMB lensing tracers
+  - Source at last scattering surface (z ~ 1100)
+
+**Design Decisions:**
+- Flexible tracer decomposition into multiple elements
+- Support for various derivative orders (Bessel, angular)
+- Validation ensures at least one component per element
+- Pydantic validation for non-negative dNdz values
+
+---
+
+###  src/c2i2o/core/emulator.py
+
+**Purpose:** Abstract base class for emulators.
+
+**Classes:**
+- EmulatorBase[InputType, OutputType]: Generic abstract base for emulators
+  - Type Parameters:
+    - InputType: Type of input data
+    - OutputType: Type of output data
+  - Attributes:
+    - emulator_type (string identifier)
+    - name (unique identifier)
+    - is_trained (boolean flag)
+    - input_shape (set during training)
+    - output_shape (set during training)
+  - Abstract methods:
+    - train(input_data, output_data, **kwargs)
+    - emulate(input_data, **kwargs) -> OutputType
+    - save(filepath, **kwargs)
+    - load(filepath, **kwargs) (classmethod)
+    - _validate_input_data(input_data)
+    - _validate_output_data(output_data)
+  - Helper methods:
+    - _check_is_trained()
+    - get_input_parameters()
+    - get_output_parameters()
+
+**Design Decisions:**
+- Generic types for flexibility in input/output formats
+- Separate validation methods for input and output data
+- Training sets input_shape and output_shape
+- Enforces training before emulation or saving
+- Supports dict-based parameter naming
+
+--
+
+### src/c2i2o/core/c2i_emulator.py
+
+**Purpose:** Abstract base class for cosmology-to-intermediate emulators.
+
+**Classes:**
+- C2IEmulator: Specialized emulator for C2I mapping
+  - Inherits: EmulatorBase[dict[str, np.ndarray], IntermediateMultiSet]
+  - Attributes:
+    - baseline_cosmology (CCLCosmologyUnion)
+    - grids (dict mapping intermediate names to GridBase, None before training)
+  - Properties:
+    - intermediate_names (sorted list from grids keys)
+  - Helper methods:
+    - _get_grid_shape(grid)
+    - _validate_input_data(input_data)
+    - _validate_output_data(output_data)
+
+**Types:**
+- CCLCosmologyUnion: Discriminated union of CCL cosmology types
+  - Includes: CCLCosmology, CCLCosmologyVanillaLCDM, CCLCosmologyCalculator
+
+**Design Decisions:**
+- Specializes EmulatorBase for cosmology-to-intermediate mapping
+- Input: dict of cosmological parameters
+- Output: IntermediateMultiSet
+- Tracks grids for each intermediate quantity
+- Validates grid consistency during training
+- Baseline cosmology for parameter variations
+
+---
 
 ### src/c2i2o/interfaces/ccl/computation.py
 
-**Purpose:** Computation configuration classes for CCL (Core Cosmology Library) interface.
+**Purpose:** CCL computation configuration classes.
+
+**Constants:**
+- VALID_COSMOLOGY_TYPES: {"ccl", "ccl_calculator", "ccl_vanilla_lcdm"}
 
 **Classes:**
-- ComovingDistanceComputationConfig: Comoving angular distance computation
-  - computation_type: Literal["comoving_distance"]
-  - function: Literal["comoving_angular_distance"] (CCL function name)
-  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
-  - eval_grid: Grid1D with 0 < min < max <= 1 (scale factor range)
-  - Validates scale factor bounds for physical consistency
 
-- HubbleEvolutionComputationConfig: Hubble parameter evolution H(a)/H0
-  - computation_type: Literal["hubble_evolution"]
-  - function: Literal["h_over_h0"] (CCL function name)
-  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
-  - eval_grid: Grid1D with 0 < min < max <= 1 (scale factor range)
-  - Validates scale factor bounds for physical consistency
+ComovingDistanceComputationConfig: Configuration for comoving angular distance
+  - Inherits from ComputationConfig
+  - Required fields:
+    - computation_type (Literal["comoving_distance"])
+    - function (Literal["comoving_angular_distance"])
+    - cosmology_type (must be in VALID_COSMOLOGY_TYPES)
+    - eval_grid (Grid1D with 0 < min < max <= 1)
+  - Validation: Ensures scale factor bounds and grid type
 
-- LinearPowerComputationConfig: Linear matter power spectrum P_lin(k, a)
-  - computation_type: Literal["linear_power"]
-  - function: Literal["linear_power"] (CCL function name)
-  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
-  - eval_grid: ProductGrid with:
-    - a_grid: Grid1D with 0 < min < max <= 1 (scale factor)
-    - k_grid: Grid1D with logarithmic spacing (wavenumber in h/Mpc)
-  - Validates both grid presence and properties
+HubbleEvolutionComputationConfig: Configuration for Hubble parameter evolution
+  - Inherits from ComputationConfig
+  - Required fields:
+    - computation_type (Literal["hubble_evolution"])
+    - function (Literal["h_over_h0"])
+    - cosmology_type (must be in VALID_COSMOLOGY_TYPES)
+    - eval_grid (Grid1D with 0 < min < max <= 1)
+  - Validation: Ensures scale factor bounds and grid type
 
-- NonLinearPowerComputationConfig: Non-linear matter power spectrum P_nl(k, a)
-  - computation_type: Literal["nonlin_power"]
-  - function: Literal["nonlin_power"] (CCL function name)
-  - cosmology_type: Must be "ccl_vanilla" or "ccl_ncdm"
-  - eval_grid: ProductGrid with:
-    - a_grid: Grid1D with 0 < min < max <= 1 (scale factor)
-    - k_grid: Grid1D with logarithmic spacing (wavenumber in h/Mpc)
-  - Validates both grid presence and properties
+LinearPowerComputationConfig: Configuration for linear matter power spectrum
+  - Inherits from ComputationConfig
+  - Required fields:
+    - computation_type (Literal["linear_power"])
+    - function (Literal["linear_power"])
+    - cosmology_type (must be in VALID_COSMOLOGY_TYPES)
+    - eval_grid (ProductGrid with 'a' and 'k' grids)
+  - Validation:
+    - a_grid: 0 < min < max <= 1
+    - k_grid: logarithmic spacing required
+    - Both must be Grid1D
 
-**Validation Features:**
-- CCL cosmology type checking (ccl_vanilla, ccl_ncdm)
-- Grid type validation (Grid1D vs ProductGrid)
-- Scale factor range validation (0 < a <= 1)
-- Logarithmic spacing requirement for wavenumber grids
-- Required grid name checking ("a" and "k" for power spectra)
-- Clear error messages for validation failures
+NonLinearPowerComputationConfig: Configuration for non-linear matter power spectrum
+  - Inherits from ComputationConfig
+  - Required fields:
+    - computation_type (Literal["nonlin_power"])
+    - function (Literal["nonlin_power"])
+    - cosmology_type (must be in VALID_COSMOLOGY_TYPES)
+    - eval_grid (ProductGrid with 'a' and 'k' grids)
+  - Validation:
+    - a_grid: 0 < min < max <= 1
+    - k_grid: logarithmic spacing required
+    - Both must be Grid1D
 
 **Design Decisions:**
-- Two separate Literal fields (computation_type and function) for clarity
-- computation_type: Short identifier for internal use
-- function: Actual CCL function name for execution
-- Inherits from ComputationConfig for consistency
-- Field validators ensure physical and computational constraints
-- Supports full serialization via Pydantic
+- Discriminated unions via computation_type
+- Strict validation of grid types and bounds
+- All configs validate cosmology_type against VALID_COSMOLOGY_TYPES
+
 ---
-
-
 
 
 ### src/c2i2o/interfaces/ccl/cosmology.py
@@ -1068,6 +785,7 @@ CCLCMBLensingTracerConfig: CCL implementation of CMB lensing tracer
 - Get CCL tracer: tracer = tracer_cfg.to_ccl_tracer(cosmo)
 - Use in CCL calculations: cl = pyccl.angular_cl(cosmo, tracer1, tracer2, ell)
 
+---
 
 ### src/c2i2o/interfaces/tensor/tf_tensor.py
 
@@ -1120,8 +838,9 @@ CCLCMBLensingTracerConfig: CCL implementation of CMB lensing tracer
 - Validation ensures grid shape matches at initialization and assignment
 - _evaluate_1d and _evaluate_product mirror NumpyTensor implementation
 
+---
 
-### src/c2i2o/interfaces/emulator/tf_emulator.py
+## src/c2i2o/interfaces/tensor/tf_emulator.py
 
 **Purpose:** TensorFlow implementation of C2I emulator.
 
@@ -1141,11 +860,11 @@ CCLCMBLensingTracerConfig: CCL implementation of CMB lensing tracer
     - _check_is_trained(): Verify emulator is trained
     - _build_model(input_dim, output_dim) -> keras.Model: Build NN architecture
     - train(input_data, output_data, **kwargs): Train neural networks
-    - emulate(input_data, **kwargs) -> list[IntermediateSet]: Predict intermediates
+    - emulate(input_data, **kwargs) -> IntermediateMultiSet: Predict intermediates  # CHANGED from list[IntermediateSet]
     - save(filepath, **kwargs): Save to directory structure
     - load(filepath, **kwargs) -> TFC2IEmulator: Load from directory (classmethod)
 
-**Training kwargs:**
+Training kwargs:
 - epochs (int): Number of training epochs (default: 100)
 - batch_size (int): Batch size (default: 32)
 - validation_split (float): Validation fraction (default: 0.0)
@@ -1182,6 +901,273 @@ CCLCMBLensingTracerConfig: CCL implementation of CMB lensing tracer
 - Grids reconstructed from YAML (Grid1D, ProductGrid)
 - Baseline cosmology reconstructed based on cosmology_type field
 - No backward compatibility with intermediate_names parameter
+
+---
+
+### src/c2i2o/parameter_generation.py
+
+**Purpose:** Parameter generation for combined univariate and multivariate distributions.
+
+**Classes:**
+- ParameterGenerator: Generator for cosmological parameter samples
+  - Required fields:
+    - num_samples (int > 0): Number of samples to generate
+    - parameter_space (ParameterSpace): Univariate parameter distributions
+    - multi_distribution_set (MultiDistributionSet): Multivariate parameter distributions
+  - Optional fields:
+    - scale_factor (float > 0, default=1.0): Universal scaling factor for distribution widths
+  - Validation:
+    - Ensures num_samples and scale_factor are positive
+    - Checks for parameter name collisions between ParameterSpace and MultiDistributionSet
+    - Validates against default multi-distribution names (dist{i}_param{j})
+  - Methods:
+    - generate(random_state): Generate parameter samples, returns dict of arrays
+    - to_yaml(filepath): Save configuration to YAML file
+    - from_yaml(filepath): Load configuration from YAML file (class method)
+    - generate_to_hdf5(filepath, groupname="parameters"): Generate and write directly to HDF5
+  - Internal methods:
+    - _scale_parameter_space(): Apply scale_factor to univariate distribution widths
+    - _scale_multi_distribution_set(): Apply scale_factor² to covariance matrices
+  - Serialization: Full support for YAML and HDF5 via tables_io
+
+**Features:**
+- Combines independent and correlated parameter distributions
+- Supports scaling of distribution widths for sensitivity studies
+- Direct HDF5 output for large sample sets
+- YAML configuration for reproducibility
+- Prevents parameter name collisions across distribution types
+
+**Design Decisions:**
+- Pydantic BaseModel for validation and serialization
+- Scale factor applied differently to univariate (linear) vs multivariate (quadratic on covariance)
+- Separate validation for parameter name uniqueness
+- Uses tables_io for HDF5 compatibility with c2i2o workflow
+
+---
+
+### src/c2i2o/c2i_calculator.py
+
+***Purpose:** Main calculator for cosmology-to-intermediates workflow.
+
+**Classes:**
+- C2ICalculator: Manages complete C2I workflow
+  - Attributes:
+    - intermediate_calculator (CCLIntermediateCalculator): Performs computations
+  - Methods:
+    - compute(params: dict[str, np.ndarray]) -> IntermediateMultiSet:
+      Compute intermediates for parameter sets
+    - compute_from_file(input_file, output_file):
+      Read parameters from HDF5, compute, write results to HDF5
+
+**Design Decisions:**
+- Wraps CCLIntermediateCalculator for high-level workflow
+- Converts raw computation results into IntermediateSet objects
+- Creates one IntermediateSet per parameter sample
+- Uses tables_io for HDF5 I/O
+
+---
+
+### src/c2i2o/c2i_emulator.py
+
+**Purpose:** Emulation workflow using trained C2I emulators.
+
+**Classes:**
+- C2IEmulatorImpl: High-level interface for emulator prediction
+  - Attributes:
+    - emulator (TFC2IEmulator): Trained emulator instance
+    - output_dir (Path | None): Directory for saving results
+  - Methods:
+    - emulate(input_data, **kwargs) -> IntermediateMultiSet:
+      Predict intermediates from parameters
+    - emulate_from_file(input_filepath, output_filepath, **kwargs) -> IntermediateMultiSet:
+      Load parameters from HDF5, emulate, optionally save results
+    - save_predictions(predictions, filepath):
+      Save IntermediateMultiSet to HDF5
+    - to_yaml(filepath):
+      Save emulator configuration reference to YAML
+    - load_emulator(filepath, **kwargs) -> C2IEmulatorImpl (classmethod):
+      Load trained emulator from disk
+
+**Design Decisions:**
+- Wraps TFC2IEmulator for convenient workflow
+- Supports both in-memory and file-based I/O
+- Saves configuration references, not trained weights
+- Uses tables_io for HDF5 operations
+
+---
+
+## src/c2i2o/c2i_train_emulator.py
+
+**Purpose:** Training workflow for C2I emulators.
+
+**Classes:**
+- C2ITrainEmulator: Manages emulator training workflow
+  - Attributes:
+    - emulator (TFC2IEmulator): Emulator instance to train
+    - output_dir (Path): Directory for models and results
+  - Methods:
+    - train(input_data, output_data, **kwargs):
+      Train emulator, save metadata to output_dir
+    - train_from_file(input_filepath, output_filepath, **kwargs):
+      Load data from HDF5 files and train
+    - save_emulator(filepath):
+      Save trained emulator to disk
+    - to_yaml(filepath):
+      Save training configuration to YAML
+    - from_yaml(filepath) -> C2ITrainEmulator (classmethod):
+      Load training configuration from YAML
+
+**Training Metadata Saved:**
+- emulator_name, n_samples, n_parameters
+- parameter_names, intermediate_names
+- emulator_config (hidden_layers, learning_rate, activation)
+- training_kwargs
+
+**Design Decisions:**
+- Manages complete training workflow
+- Automatic metadata saving to output_dir/training_metadata.yaml
+- Supports YAML-based configuration
+- Uses tables_io for HDF5 I/O
+- Expects IntermediateMultiSet for output data
+
+---
+
+
+### CLI Components (`cli/`)
+
+- `main.py`: Main CLI entry point
+  - `cli()`: Main click group for c2i2o commands
+
+- `option.py`: Reusable CLI options and utilities
+  - `PartialOption`: Wrapper for click.option with partial arguments for reuse
+  - `PartialArgument`: Wrapper for click.argument with partial arguments for reuse
+  - Standard options: `config_file_arg`, `input_file_arg`, `input_file_opt`, `output_file_opt`, `output_dir_opt`, `random_seed_opt`, `overwrite_opt`, `verbose_opt`, `emulator_path_opt`, `emulator_output_opt`, `epochs_opt`, `batch_size_opt`, `validation_split_opt`, `early_stopping_opt`, `patience_opt`
+
+- `cosmo.py`: CLI commands for cosmological parameter operations
+  - `cosmo()`: Click group for cosmology commands
+  - `generate()`: Generate parameter samples from YAML config
+  - `plot()`: Plot parameter distributions (placeholder)
+
+- `c2i.py`: CLI commands for C2I operations
+  - `c2i()`: Click group for C2I commands
+  - `compute()`: Compute intermediates from parameters
+  - `train()`: Train emulator on intermediate data
+  - `emulate()`: Use trained emulator for predictions
+
+
+
+### src/c2i2o/cli/__init__.py
+
+**Purpose:** Command-line interface package initialization.
+
+**Exports:**
+- cli: Main CLI entry point (Click group)
+- cosmo: Cosmology command group
+
+### src/c2i2o/cli/main.py
+
+**Purpose:** Main CLI entry point and command group registration.
+
+**Functions:**
+- cli(): Main Click group
+  - Provides version option
+  - Registers all command groups (cosmo)
+  - Entry point for 'c2i2o' command
+
+**Configuration:**
+- Entry point: c2i2o = "c2i2o.cli:cli" (in pyproject.toml)
+
+### src/c2i2o/cli/option.py
+
+**Purpose:** Reusable CLI options and custom parameter types.
+
+**Classes:**
+
+- PartialOption: Wrapper for click.option with partial arguments
+  - Enables reusable option definitions across commands
+  - Maintains consistent behavior and documentation
+
+- PartialArgument: Wrapper for click.argument with partial arguments
+  - Enables reusable argument definitions across commands
+
+**Standard Arguments:**
+- config_file_arg: YAML configuration file input (Path, must exist)
+- input_file_arg: HDF5 input file (Path, must exist)
+
+**Standard Options:**
+- output_file_opt: Output HDF5 file path (-o, --output, required)
+- output_dir_opt: Output directory for plots (-d, --output-dir, required)
+- random_seed_opt: Random seed for reproducibility (-s, --random-seed, optional)
+- groupname_opt: HDF5 group name (-g, --groupname, default="parameters")
+- overwrite_opt: Overwrite protection flag (--overwrite, flag)
+- verbose_opt: Verbose output flag (-v, --verbose, flag)
+
+
+### src/c2i2o/cli/cosmo.py
+
+**Purpose:** Commands for cosmological parameter operations.
+
+**Command Group:**
+- cosmo: Parent group for cosmology-related commands
+
+**Commands:**
+- generate: Generate parameter samples from YAML configuration
+  - Arguments: config_file (YAML with ParameterGenerator)
+  - Options: output, groupname, random_seed, overwrite, verbose
+  - Loads ParameterGenerator from YAML
+  - Generates samples with optional random seed
+  - Saves to HDF5 with configurable group name
+  - Overwrite protection (requires --overwrite flag)
+  - Colored success/error messages
+  - Comprehensive error handling
+
+- plot: Plot parameter distributions from HDF5 [PLACEHOLDER]
+  - Arguments: input_file (HDF5 with parameter samples)
+  - Options: output_dir, groupname, verbose
+  - Creates output directory if needed
+  - Placeholder implementation with warning message
+  - TODO: 1D histograms, 2D corner plots, summary statistics
+
+**Features:**
+- Reuses standardized options from option.py
+- Click-based CLI with proper help messages
+- Path validation and error handling
+- Verbose mode for detailed output
+- Reproducible generation with random seeds
+
+**Usage Examples:**
+  c2i2o cosmo generate config.yaml -o samples.h5 -s 42 -v
+  c2i2o cosmo generate config.yaml -o samples.h5 --overwrite
+  c2i2o cosmo plot samples.h5 -d plots/ -v
+
+### src/c2i2o/cli/c2i.py
+
+**Purpose:** computing intermediates from cosmological parameters
+
+**Command Group:**
+- c2i: Parent group for cosmology-to-intermediates-related commands
+
+**Commands:**
+- compute: Compute intermediates from cosmoligcal parameters
+  - Arguments: config_file (YAML with C2ICalculator)
+  - Options: input, output, overwrite, verbose
+  - Loads C2ICalculator from YAML
+  - For each set of parameters, computes sets of intermetidates
+  - Saves to HDF5
+  - Overwrite protection (requires --overwrite flag)
+  - Colored success/error messages
+  - Comprehensive error handling
+
+**Features:**
+- Reuses standardized options from option.py
+- Click-based CLI with proper help messages
+- Path validation and error handling
+- Verbose mode for detailed output
+- Reproducible generation with random seeds
+
+**Usage Examples:**
+  c2i2o c2i compute config.yaml -i samples.hdf5 -o intermediates.hdf5
+
 
 
 ## Data Flow Examples
@@ -1247,8 +1233,6 @@ eval_params = {
 }
 interpolated = tensor.evaluate(eval_params)
 ```
-
-
 
 
 ## Example Workflows
