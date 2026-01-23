@@ -371,7 +371,7 @@ class IntermediateSet(BaseModel):
         return np.concatenate(flattened_arrays)
 
     @property
-    def grids(self) -> dict[str, "GridBase"]:
+    def grids(self) -> dict[str, GridBase]:
         """Get dictionary of grids for all intermediates.
 
         Returns
@@ -379,7 +379,6 @@ class IntermediateSet(BaseModel):
         dict[str, GridBase]
             Dictionary mapping intermediate names to their grid definitions.
         """
-        from c2i2o.core.grid import GridBase
 
         return {name: inter.tensor.grid for name, inter in self.intermediates.items()}
 

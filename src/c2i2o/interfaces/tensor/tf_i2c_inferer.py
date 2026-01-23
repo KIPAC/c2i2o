@@ -4,15 +4,17 @@ This module provides a neural network-based inferer using TensorFlow/Keras
 to map from intermediate quantities back to cosmological parameters.
 """
 
+import warnings
+from io import StringIO
 from pathlib import Path
 from typing import Any, Literal, cast
 
 import numpy as np
-import tensorflow as tf
 import yaml
 from pydantic import Field, field_validator
 from tensorflow import keras
 
+from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
 from c2i2o.core.i2c_inferer import I2CInferer
 from c2i2o.core.intermediate import IntermediateMultiSet
 
@@ -272,7 +274,7 @@ class TFI2CInferer(I2CInferer):
             If number of samples doesn't match between inputs and outputs.
         """
         # Flatten intermediates
-        X = input_data.flatten()  # Shape: (n_samples, total_intermediate_dim)
+        x = input_data.flatten()  # Shape: (n_samples, total_intermediate_dim)
 
         # Stack parameters in consistent order
         if self.parameter_names is None:
@@ -282,25 +284,25 @@ class TFI2CInferer(I2CInferer):
         # Shape: (n_samples, n_parameters)
 
         # Validate sample count consistency
-        if X.shape[0] != y.shape[0]:
+        if x.shape[0] != y.shape[0]:
             raise ValueError(
-                f"Sample count mismatch: inputs have {X.shape[0]} samples, "
+                f"Sample count mismatch: inputs have {x.shape[0]} samples, "
                 f"outputs have {y.shape[0]} samples"
             )
 
         # Compute and store normalization parameters
         self.normalizers = {
-            "X_mean": X.mean(axis=0),
-            "X_std": X.std(axis=0) + 1e-8,  # Add small epsilon for stability
+            "x_mean": x.mean(axis=0),
+            "x_std": x.std(axis=0) + 1e-8,  # Add small epsilon for stability
             "y_mean": y.mean(axis=0),
             "y_std": y.std(axis=0) + 1e-8,
         }
 
         # Normalize
-        X_normalized = (X - self.normalizers["X_mean"]) / self.normalizers["X_std"]
+        x_normalized = (x - self.normalizers["x_mean"]) / self.normalizers["x_std"]
         y_normalized = (y - self.normalizers["y_mean"]) / self.normalizers["y_std"]
 
-        return X_normalized, y_normalized
+        return x_normalized, y_normalized
 
     def train(
         self,
@@ -332,16 +334,16 @@ class TFI2CInferer(I2CInferer):
         self.grids = input_data.grids.copy()
 
         # Prepare and normalize data
-        X, y = self._prepare_training_data(input_data, output_data)
+        x, y = self._prepare_training_data(input_data, output_data)
 
         # Store shapes and sample count
-        self.input_shape = (X.shape[1],)
+        self.input_shape = (x.shape[1],)
         self.output_shape = (y.shape[1],)
-        self.training_samples = X.shape[0]
+        self.training_samples = x.shape[0]
 
         # Build model
         self.model = self._build_model(
-            input_dim=X.shape[1],
+            input_dim=x.shape[1],
             output_dim=y.shape[1],
         )
 
@@ -367,7 +369,7 @@ class TFI2CInferer(I2CInferer):
         fit_kwargs.update(kwargs)
 
         # Train model
-        self.model.fit(X, y, **fit_kwargs)  # type: ignore
+        self.model.fit(x, y, **fit_kwargs)  # type: ignore
 
         # Mark as trained
         self.is_trained = True
@@ -403,13 +405,13 @@ class TFI2CInferer(I2CInferer):
         self._validate_input_data(input_data)
 
         # Flatten and normalize inputs
-        X = input_data.flatten()
+        x = input_data.flatten()
         assert self.normalizers is not None
-        X_normalized = (X - self.normalizers["X_mean"]) / self.normalizers["X_std"]
+        x_normalized = (x - self.normalizers["x_mean"]) / self.normalizers["x_std"]
 
         # Predict (normalized outputs)
         assert self.model is not None
-        y_normalized = self.model.predict(X_normalized, verbose=0)
+        y_normalized = self.model.predict(x_normalized, verbose=0)
 
         # Denormalize outputs
         y = y_normalized * self.normalizers["y_std"] + self.normalizers["y_mean"]
@@ -448,6 +450,12 @@ class TFI2CInferer(I2CInferer):
         filepath = Path(filepath)
         filepath.mkdir(parents=True, exist_ok=True)
 
+        # Save configuration (excluding models, grids, and normalizers)
+        config_dict = self.model_dump(exclude={"models", "grids", "normalizers"})
+
+        with open(filepath / "config.yaml", "w") as f:
+            yaml.dump(config_dict, f, default_flow_style=False)
+
         # Save model
         model_path = filepath / "model.keras"
         assert self.model is not None
@@ -456,38 +464,17 @@ class TFI2CInferer(I2CInferer):
         # Save normalizers
         normalizers_path = filepath / "normalizers.npz"
         assert self.normalizers is not None
-        np.savez(normalizers_path, **self.normalizers)
+        np.savez(normalizers_path, **self.normalizers)  # type: ignore
 
         # Save grids
         grids_dir = filepath / "grids"
         grids_dir.mkdir(exist_ok=True)
         assert self.grids is not None
         for name, grid in self.grids.items():
+            grid_dict = grid.model_dump()
             grid_path = grids_dir / f"{name}.yaml"
-            grid.to_yaml(grid_path)
-
-        # Save configuration
-        config_path = filepath / "config.yaml"
-        config_data = {
-            "inferer_type": self.inferer_type,
-            "name": self.name,
-            "parameter_names": self.parameter_names,
-            "hidden_layers": self.hidden_layers,
-            "learning_rate": self.learning_rate,
-            "activation": self.activation,
-            "batch_size": self.batch_size,
-            "epochs": self.epochs,
-            "validation_split": self.validation_split,
-            "early_stopping_patience": self.early_stopping_patience,
-            "is_trained": self.is_trained,
-            "input_shape": self.input_shape,
-            "output_shape": self.output_shape,
-            "training_samples": self.training_samples,
-            "intermediate_names": self.intermediate_names,
-        }
-
-        with open(config_path, "w") as f:
-            yaml.dump(config_data, f, default_flow_style=False)
+            with open(grid_path, "w") as f:
+                yaml.dump(grid_dict, f, default_flow_style=False)
 
     @classmethod
     def load(cls, filepath: str | Path, **kwargs: Any) -> "TFI2CInferer":
@@ -512,7 +499,6 @@ class TFI2CInferer(I2CInferer):
         ValueError
             If configuration is invalid.
         """
-        from c2i2o.core.grid import GridBase
 
         filepath = Path(filepath)
 
@@ -523,10 +509,28 @@ class TFI2CInferer(I2CInferer):
 
         # Load grids
         grids_dir = filepath / "grids"
-        grids = {}
+        grids: dict[str, GridBase] = {}
         for grid_file in grids_dir.glob("*.yaml"):
             name = grid_file.stem
-            grids[name] = GridBase.from_yaml(grid_file)
+            with open(grid_file) as f:
+                grid_dict = yaml.safe_load(f)
+            # Reconstruct grid based on grid_type
+            grid_type = grid_dict.get("grid_type")
+
+            if grid_type == "grid_1d":
+                Grid1D(**grid_dict)
+            elif grid_type == "product_grid":
+                # Reconstruct sub-grids
+                sub_grids: list[Grid1D] = []
+                dimension_names: list[str] = []
+                for name, sub_grid_dict in zip(
+                    grid_dict["dimension_names"], grid_dict["grids"], strict=False
+                ):
+                    sub_grids.append(Grid1D(**sub_grid_dict))
+                    dimension_names.append(name)
+                ProductGrid(grids=sub_grids, dimension_names=dimension_names)
+            else:
+                raise ValueError(f"Unknown grid type: {grid_type}")
 
         # Load normalizers
         normalizers_path = filepath / "normalizers.npz"
@@ -570,11 +574,9 @@ class TFI2CInferer(I2CInferer):
         if self.model is None:
             return None
 
-        from io import StringIO
-
         stream = StringIO()
         assert self.model is not None
-        self.model.summary(print_fn=lambda x: stream.write(x + "\n"))
+        self.model.summary(print_fn=lambda x: stream.write(x + "\n"))  # type: ignore
         return stream.getvalue()
 
     def get_training_history(self) -> dict[str, list[float]] | None:
@@ -631,9 +633,9 @@ class TFI2CInferer(I2CInferer):
         self._validate_output_data(output_data)
 
         # Prepare data
-        X = input_data.flatten()
+        x = input_data.flatten()
         assert self.normalizers is not None
-        X_normalized = (X - self.normalizers["X_mean"]) / self.normalizers["X_std"]
+        x_normalized = (x - self.normalizers["x_mean"]) / self.normalizers["x_std"]
 
         assert self.parameter_names is not None
         y = np.column_stack([output_data[name] for name in self.parameter_names])
@@ -643,11 +645,11 @@ class TFI2CInferer(I2CInferer):
         eval_kwargs = {"verbose": 0}
         eval_kwargs.update(kwargs)
         assert self.model is not None
-        results = self.model.evaluate(X_normalized, y_normalized, **eval_kwargs)  # type: ignore
+        results = self.model.evaluate(x_normalized, y_normalized, **eval_kwargs)  # type: ignore
 
         # Return metrics dictionary
         metric_names = ["loss"] + [m.name for m in self.model.metrics]
-        return dict(zip(metric_names, results if isinstance(results, list) else [results]))
+        return dict(zip(metric_names, results if isinstance(results, list) else [results], strict=False))
 
     def compute_residuals(
         self,
@@ -736,8 +738,6 @@ class TFI2CInferer(I2CInferer):
 
             # Warn if true values are near zero
             if np.any(np.abs(true_values) < 1e-10):
-                import warnings
-
                 warnings.warn(
                     f"Parameter '{name}' has true values near zero. " "Relative errors may be unreliable.",
                     RuntimeWarning,

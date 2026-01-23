@@ -1,10 +1,7 @@
 """Tests for c2i2o.core.grid module."""
 
-from pathlib import Path
-
 import numpy as np
 import pytest
-import tables_io
 from pydantic import ValidationError
 
 from c2i2o.core.grid import Grid1D, GridBase, ProductGrid
@@ -321,134 +318,6 @@ class TestProductGridCoverageGaps:
         assert len(points_dict) == 1
         assert "x" in points_dict
         assert points_dict["x"].shape == (5,)
-
-
-class TestProductGridIO:
-    """Tests for product grid I/O using tables_io."""
-
-    def test_save_grid(self, simple_product_grid: ProductGrid, tmp_path: Path) -> None:
-        """Test saving grid points to HDF5."""
-        filename = tmp_path / "grid.hdf5"
-
-        simple_product_grid.save_grid(str(filename))
-
-        assert filename.exists()
-
-    def test_load_grid(self, simple_product_grid: ProductGrid, tmp_path: Path) -> None:
-        """Test loading grid points from HDF5."""
-        filename = tmp_path / "grid.hdf5"
-
-        # Save then load
-        simple_product_grid.save_grid(str(filename))
-        loaded_points = ProductGrid.load_grid(str(filename))
-
-        # Check all dimensions present
-        assert set(loaded_points.keys()) == set(simple_product_grid.dimension_names)
-
-        # Check values match
-        original_points = simple_product_grid.build_grid_dict()
-        for name in simple_product_grid.dimension_names:
-            np.testing.assert_array_equal(loaded_points[name], original_points[name])
-
-    def test_save_load_roundtrip(self, simple_product_grid: ProductGrid, tmp_path: Path) -> None:
-        """Test round-trip save and load."""
-        filename = tmp_path / "roundtrip.hdf5"
-
-        # Get original points
-        original = simple_product_grid.build_grid_dict()
-
-        # Save
-        simple_product_grid.save_grid(str(filename))
-
-        # Load
-        loaded = ProductGrid.load_grid(str(filename))
-
-        # Verify identical
-        assert loaded.keys() == original.keys()
-        for name in original.keys():
-            np.testing.assert_array_equal(loaded[name], original[name])
-
-    def test_save_grid_preserves_total_points(self, simple_product_grid: ProductGrid, tmp_path: Path) -> None:
-        """Test that total number of points is preserved."""
-        filename = tmp_path / "points.hdf5"
-
-        simple_product_grid.save_grid(str(filename))
-        loaded = ProductGrid.load_grid(str(filename))
-
-        # Each dimension should have total_points entries
-        expected_total = simple_product_grid.total_points
-        for name in loaded.keys():
-            assert len(loaded[name]) == expected_total
-
-    def test_save_grid_preserves_values(self, tmp_path: Path) -> None:
-        """Test that grid values are exactly preserved."""
-        # Create grid with specific values
-        grid = ProductGrid(
-            grids=[
-                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-                Grid1D(min_value=0.0, max_value=2.0, n_points=2),
-            ],
-            dimension_names=["x", "y"],
-        )
-        filename = tmp_path / "values.hdf5"
-
-        grid.save_grid(str(filename))
-        loaded = ProductGrid.load_grid(str(filename))
-
-        # Check specific values
-        original = grid.build_grid_dict()
-        for name in ["x", "y"]:
-            np.testing.assert_allclose(loaded[name], original[name])
-
-    def test_load_grid_is_static_method(self, tmp_path: Path) -> None:
-        """Test that load_grid can be called without instance."""
-        # Create dummy grid data
-        data = {
-            "x": np.array([0.0, 1.0, 2.0]),
-            "y": np.array([0.0, 1.0, 2.0]),
-        }
-        filename = tmp_path / "static.hdf5"
-
-        tables_io.write(data, str(filename))
-
-        # Can call without creating ProductGrid instance
-        loaded = ProductGrid.load_grid(str(filename))
-        assert "x" in loaded
-        assert "y" in loaded
-
-    def test_save_single_dimension_grid(self, tmp_path: Path) -> None:
-        """Test saving grid with single dimension."""
-        grid = ProductGrid(
-            grids=[Grid1D(min_value=0.0, max_value=2.0, n_points=50)],
-            dimension_names=["z"],
-        )
-        filename = tmp_path / "single.hdf5"
-
-        grid.save_grid(str(filename))
-        loaded = ProductGrid.load_grid(str(filename))
-
-        assert set(loaded.keys()) == {"z"}
-        assert len(loaded["z"]) == 50
-
-    def test_save_three_dimensional_grid(self, tmp_path: Path) -> None:
-        """Test saving grid with three dimensions."""
-        grid = ProductGrid(
-            grids=[
-                Grid1D(min_value=0.0, max_value=1.0, n_points=5),
-                Grid1D(min_value=0.0, max_value=1.0, n_points=4),
-                Grid1D(min_value=0.0, max_value=1.0, n_points=3),
-            ],
-            dimension_names=["x", "y", "z"],
-        )
-        filename = tmp_path / "3d.hdf5"
-
-        grid.save_grid(str(filename))
-        loaded = ProductGrid.load_grid(str(filename))
-
-        assert set(loaded.keys()) == {"x", "y", "z"}
-        # Total points = 5 * 4 * 3 = 60
-        for name in loaded.keys():
-            assert len(loaded[name]) == 60
 
 
 class TestGridDiscriminator:

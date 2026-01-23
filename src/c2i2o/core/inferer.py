@@ -6,16 +6,16 @@ Inferers map from observables to cosmological parameters (inverse problem).
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field, field_validator
 
 # Type variables for generic input/output types
-InputType = TypeVar("InputType")
-OutputType = TypeVar("OutputType")
+InputType = TypeVar("InputType")  # pylint: disable=invalid-name
+OutputType = TypeVar("OutputType")  # pylint: disable=invalid-name
 
 
-class InfererBase(BaseModel, ABC, Generic[InputType, OutputType]):
+class InfererBase[InputType, OutputType](BaseModel, ABC):  # pylint: disable=invalid-name
     """Abstract base class for inferers.
 
     This class provides the interface that all inferer implementations must follow.
